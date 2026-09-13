@@ -1,20 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 
 type Market = { pair: string; price: number; change24h: number };
+
+export const BOT_ACTIVATION_USD = 500;
 
 const MARKET_IDS: Record<string, string> = {
   "TON/USDT": "the-open-network",
   "NOT/USDT": "notcoin",
   "DOGS/USDT": "dogs-2",
 };
-
-function serverClient() {
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  return createClient(process.env["SUPABASE_URL"]!, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 async function loadMarkets(): Promise<Market[]> {
   const ids = Object.values(MARKET_IDS).join(",");
@@ -42,6 +36,42 @@ export const getMarkets = createServerFn({ method: "GET" }).handler(async () => 
   }
 });
 
+export const createTradingBot = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      telegramId: number;
+      walletAddress: string;
+      depositTon: number;
+      risk: "conservative" | "balanced" | "aggressive";
+      txHash: string | null;
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    const ton = (await loadMarkets()).find((market) => market.pair === "TON/USDT");
+    if (!ton?.price) throw new Error("TON price is temporarily unavailable");
+    const requiredTon = BOT_ACTIVATION_USD / ton.price;
+    if (!Number.isFinite(data.depositTon) || data.depositTon < requiredTon * 0.995) {
+      throw new Error(`Activation requires $${BOT_ACTIVATION_USD} in TON`);
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: bot, error } = await supabaseAdmin
+      .from("tt_ai_bots")
+      .insert({
+        telegram_id: data.telegramId,
+        wallet_address: data.walletAddress,
+        deposit: data.depositTon,
+        balance: data.depositTon,
+        risk: data.risk,
+        tx_hash: data.txHash,
+        status: "pending",
+        verified: false,
+      })
+      .select()
+      .single();
+    if (error) throw new Error("Could not create the trading bot");
+    return bot;
+  });
+
 const RISK_SIZE: Record<string, number> = { conservative: 0.1, balanced: 0.2, aggressive: 0.35 };
 
 /**
@@ -52,18 +82,20 @@ const RISK_SIZE: Record<string, number> = { conservative: 0.1, balanced: 0.2, ag
 export const runAiCycle = createServerFn({ method: "POST" })
   .inputValidator((input: { botId: string }) => input)
   .handler(async ({ data }) => {
-    const supabase = serverClient();
-    const { data: bot } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: bot } = await supabaseAdmin
       .from("tt_ai_bots")
       .select("*")
       .eq("id", data.botId)
       .maybeSingle();
-    if (!bot || bot.status !== "running") return { ok: false, reason: "bot_inactive" };
+    if (!bot || bot.status !== "running" || !bot.verified) {
+      return { ok: false, reason: "bot_inactive" };
+    }
 
     const markets = await loadMarkets();
     if (!markets.length) return { ok: false, reason: "no_market_data" };
 
-    const { data: open } = await supabase
+    const { data: open } = await supabaseAdmin
       .from("tt_ai_trades")
       .select("*")
       .eq("bot_id", bot.id)
@@ -89,7 +121,7 @@ export const runAiCycle = createServerFn({ method: "POST" })
           console.error("live sell failed", err);
         }
       }
-      await supabase
+      await supabaseAdmin
         .from("tt_ai_trades")
         .update({
           exit_price: market.price,
@@ -98,7 +130,7 @@ export const runAiCycle = createServerFn({ method: "POST" })
           closed_at: new Date().toISOString(),
         })
         .eq("id", open.id);
-      await supabase
+      await supabaseAdmin
         .from("tt_ai_bots")
         .update({
           balance: Number(bot.balance) + pnl,
@@ -123,10 +155,13 @@ export const runAiCycle = createServerFn({ method: "POST" })
         live = true;
       } catch (err) {
         console.error("live buy failed", err);
+        return { ok: false, reason: "live_buy_failed" };
       }
     }
 
-    await supabase.from("tt_ai_trades").insert({
+    if (!live) return { ok: true, action: "hold", reason: "no_live_signal" };
+
+    await supabaseAdmin.from("tt_ai_trades").insert({
       bot_id: bot.id,
       telegram_id: bot.telegram_id,
       pair: pick.pair,

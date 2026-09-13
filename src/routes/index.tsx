@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
 import { toast } from "sonner";
 import { ArrowUpRight, Check, Lock, Wallet2 } from "lucide-react";
-import gramCoin from "@/assets/gram-coin.png";
+import gramCoin from "@/assets/gram.png.asset.json";
+import { CoinIcon } from "@/components/CoinIcon";
 import {
   ASSETS,
   TIERS,
@@ -35,6 +36,8 @@ export const Route = createFileRoute("/")({
         property: "og:description",
         content: "Tiered staking for GRAM and TON assets inside Telegram.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: StakePage,
@@ -134,7 +137,7 @@ function StakePage() {
     <main className="mx-auto w-full max-w-md px-5 pt-6">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src={gramCoin} alt="Gram token" width={36} height={36} className="h-9 w-9" />
+          <img src={gramCoin.url} alt="Gram token" width={36} height={36} className="h-9 w-9" />
           <div>
             <h1 className="text-[17px] font-semibold leading-tight">Gram Staking</h1>
             <p className="text-[12px] text-muted-foreground">TON network</p>
@@ -170,18 +173,19 @@ function StakePage() {
 
       <section className="mt-6">
         <h2 className="px-1 text-[13px] font-medium text-muted-foreground">Asset</h2>
-        <div className="mt-2 grid grid-cols-4 gap-2 rounded-2xl bg-muted p-1">
+        <div className="mt-2 grid grid-cols-4 gap-1 rounded-2xl bg-muted p-1">
           {ASSETS.map((a) => (
             <button
               key={a.symbol}
               onClick={() => setAsset(a.symbol)}
               className={
                 asset === a.symbol
-                  ? "rounded-xl bg-card py-2 text-[13px] font-medium shadow-sm"
-                  : "rounded-xl py-2 text-[13px] font-medium text-muted-foreground"
+                  ? "flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl bg-card px-1 py-2 text-[11px] font-medium shadow-sm"
+                  : "flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium text-muted-foreground"
               }
             >
-              {a.symbol}
+              <CoinIcon symbol={a.symbol} className="h-6 w-6" />
+              <span className="text-center leading-tight">{a.label}</span>
             </button>
           ))}
         </div>

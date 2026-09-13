@@ -6,13 +6,14 @@ export const BOT_URL = "https://t.me/Rielmbot";
 export type Asset = {
   symbol: string;
   name: string;
+  label: string;
 };
 
 export const ASSETS: Asset[] = [
-  { symbol: "GRAM", name: "Gram" },
-  { symbol: "TON", name: "Toncoin" },
-  { symbol: "USDT", name: "Tether" },
-  { symbol: "NOT", name: "Notcoin" },
+  { symbol: "GRAM", name: "Gram", label: "GRAM (ex TON)" },
+  { symbol: "USDT", name: "Tether", label: "USDT" },
+  { symbol: "NOT", name: "Notcoin", label: "NOT" },
+  { symbol: "DOGS", name: "Dogs", label: "DOGS" },
 ];
 
 export type Tier = {

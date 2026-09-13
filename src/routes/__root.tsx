@@ -15,6 +15,9 @@ import BottomNav from "@/components/BottomNav";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
+const TONCONNECT_MANIFEST =
+  "https://project--7dc6fd40-9d95-4c66-b704-d5545481c4ac-dev.lovable.app/api/public/tonconnect-manifest";
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -108,7 +111,7 @@ function RootComponent() {
   const [manifestUrl, setManifestUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    setManifestUrl(`${window.location.origin}/api/public/tonconnect-manifest`);
+    setManifestUrl(TONCONNECT_MANIFEST);
     const tg = (window as unknown as { Telegram?: { WebApp?: Record<string, unknown> } }).Telegram
       ?.WebApp as
       | { ready?: () => void; expand?: () => void; setHeaderColor?: (c: string) => void }

@@ -1,16 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
-
 const TREASURY = "UQAp1QxnLJ2z44IooUovvtVShw7hJBEdxCRV3RlbCYC3D8qj";
 const TONCENTER = "https://toncenter.com/api/v3";
-
-function serverClient() {
-  return createClient(
-    process.env["SUPABASE_URL"]!,
-    process.env["SUPABASE_PUBLISHABLE_KEY"]!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-}
 
 type Incoming = { source?: string | undefined; value: number; hash: string; utime: number };
 
@@ -57,8 +47,48 @@ export const verifyPayment = createServerFn({ method: "POST" })
     }) => input,
   )
   .handler(async ({ data }) => {
-    const supabase = serverClient();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const table = data.kind === "stake" ? "tt_stakes" : "tt_ai_bots";
+    const { data: stakeReference } =
+      data.kind === "stake"
+        ? await supabaseAdmin
+            .from("tt_stakes")
+            .select("telegram_id, ton_paid, created_at")
+            .eq("id", data.refId)
+            .maybeSingle()
+        : { data: null };
+    const { data: botReference } =
+      data.kind === "bot"
+        ? await supabaseAdmin
+            .from("tt_ai_bots")
+            .select("telegram_id, deposit, created_at")
+            .eq("id", data.refId)
+            .maybeSingle()
+        : { data: null };
+    const reference = stakeReference ?? botReference;
+    if (!reference || Number(reference.telegram_id) !== data.telegramId) {
+      return { verified: false, reason: "invalid_reference" };
+    }
+    const expectedAmount = Number(stakeReference?.ton_paid ?? botReference?.deposit);
+    if (!Number.isFinite(expectedAmount) || expectedAmount <= 0) {
+      return { verified: false, reason: "invalid_amount" };
+    }
+    if (data.kind === "bot") {
+      try {
+        const res = await fetch(
+          "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd",
+          { headers: { accept: "application/json" } },
+        );
+        const prices = (await res.json()) as { "the-open-network"?: { usd?: number } };
+        const tonUsd = Number(prices["the-open-network"]?.usd);
+        if (!res.ok || !Number.isFinite(tonUsd)) throw new Error("price_unavailable");
+        if (expectedAmount * tonUsd < 497.5) {
+          return { verified: false, reason: "insufficient_amount" };
+        }
+      } catch {
+        return { verified: false, reason: "price_unavailable" };
+      }
+    }
 
     let matched: Incoming | undefined;
     try {
@@ -67,16 +97,16 @@ export const verifyPayment = createServerFn({ method: "POST" })
       matched = incoming.find(
         (tx) =>
           tx.utime >= cutoff &&
-          tx.value >= data.amount * 0.98 &&
+          tx.value >= expectedAmount * 0.98 &&
           (!data.sender || normalize(tx.source).endsWith(normalize(data.sender).slice(-12))),
       );
     } catch (err) {
-      await supabase.from("tt_wallet_ops").insert({
+      await supabaseAdmin.from("tt_wallet_ops").insert({
         telegram_id: data.telegramId,
         kind: data.kind,
         ref_id: data.refId,
         sender_address: data.sender,
-        amount: data.amount,
+        amount: expectedAmount,
         status: "error",
         detail: { message: err instanceof Error ? err.message : "unknown" },
       });
@@ -84,28 +114,49 @@ export const verifyPayment = createServerFn({ method: "POST" })
     }
 
     if (!matched) {
-      await supabase.from("tt_wallet_ops").insert({
+      await supabaseAdmin.from("tt_wallet_ops").insert({
         telegram_id: data.telegramId,
         kind: data.kind,
         ref_id: data.refId,
         sender_address: data.sender,
-        amount: data.amount,
+        amount: expectedAmount,
         status: "pending",
       });
       return { verified: false, reason: "not_found_yet" };
     }
 
-    await supabase
-      .from(table)
-      .update({
-        verified: true,
-        verified_at: new Date().toISOString(),
-        tx_hash: matched.hash,
-        ...(data.kind === "stake" ? { sender_address: data.sender } : {}),
-      })
-      .eq("id", data.refId);
+    const { data: reused } = await supabaseAdmin
+      .from("tt_wallet_ops")
+      .select("ref_id")
+      .eq("tx_hash", matched.hash)
+      .eq("status", "confirmed")
+      .neq("ref_id", data.refId)
+      .limit(1);
+    if (reused?.length) return { verified: false, reason: "payment_already_used" };
 
-    await supabase.from("tt_wallet_ops").insert({
+    if (data.kind === "stake") {
+      await supabaseAdmin
+        .from("tt_stakes")
+        .update({
+          verified: true,
+          verified_at: new Date().toISOString(),
+          tx_hash: matched.hash,
+          sender_address: data.sender,
+        })
+        .eq("id", data.refId);
+    } else {
+      await supabaseAdmin
+        .from("tt_ai_bots")
+        .update({
+          verified: true,
+          verified_at: new Date().toISOString(),
+          tx_hash: matched.hash,
+          status: "running",
+        })
+        .eq("id", data.refId);
+    }
+
+    await supabaseAdmin.from("tt_wallet_ops").insert({
       telegram_id: data.telegramId,
       kind: data.kind,
       ref_id: data.refId,
