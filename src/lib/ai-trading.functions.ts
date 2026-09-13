@@ -17,15 +17,29 @@ async function loadMarkets(): Promise<Market[]> {
     `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
     { headers: { accept: "application/json" } },
   );
-  if (!res.ok) throw new Error(`Market data unavailable [${res.status}]`);
-  const json = (await res.json()) as Record<string, { usd: number; usd_24h_change?: number }>;
-  return Object.entries(MARKET_IDS)
-    .map(([pair, id]) => {
-      const row = json[id];
-      if (!row?.usd) return null;
-      return { pair, price: row.usd, change24h: row.usd_24h_change ?? 0 };
-    })
-    .filter((m): m is Market => m !== null);
+  if (res.ok) {
+    const json = (await res.json()) as Record<string, { usd: number; usd_24h_change?: number }>;
+    const markets = Object.entries(MARKET_IDS)
+      .map(([pair, id]) => {
+        const row = json[id];
+        if (!row?.usd) return null;
+        return { pair, price: row.usd, change24h: row.usd_24h_change ?? 0 };
+      })
+      .filter((market): market is Market => market !== null);
+    if (markets.length) return markets;
+  }
+
+  const symbols = ["TONUSDT", "NOTUSDT", "DOGSUSDT"];
+  const fallback = await Promise.all(symbols.map(async (symbol) => {
+    const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
+    if (!response.ok) return null;
+    const row = await response.json() as { lastPrice?: string; priceChangePercent?: string };
+    const price = Number(row.lastPrice);
+    if (!Number.isFinite(price) || price <= 0) return null;
+    const pair = symbol === "TONUSDT" ? "TON/USDT" : symbol === "NOTUSDT" ? "NOT/USDT" : "DOGS/USDT";
+    return { pair, price, change24h: Number(row.priceChangePercent) || 0 };
+  }));
+  return [{ pair: "USDT/USD", price: 1, change24h: 0 }, ...fallback.filter((market): market is Market => market !== null)];
 }
 
 /** Live market snapshot used by the wallet screen. */

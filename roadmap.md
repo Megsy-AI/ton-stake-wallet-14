@@ -19,4 +19,4 @@
 - [x] Simplify Stake header and remove the two market-data disclosure labels.
 - [x] Rebuild Wallet as the final tab with deposit, withdraw, live balance, and asset prices only.
 - [x] Simplify AI Trading into a compact, understandable agent dashboard.
-- [ ] Verify all three screens at 434×716 and check current diagnostics.
+- [x] Verify all three screens at 434×716 and check current diagnostics.
