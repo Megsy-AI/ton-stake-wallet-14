@@ -1,11 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bot, Layers2, WalletCards } from "lucide-react";
+import { ChartNoAxesCombined, CircleDollarSign, WalletMinimal } from "lucide-react";
 import { motion } from "framer-motion";
 
 const items = [
-  { to: "/", label: "Stake", Icon: Layers2 },
-  { to: "/wallet", label: "Wallet", Icon: WalletCards },
-  { to: "/trading", label: "AI Trade", Icon: Bot },
+  { to: "/", label: "Stake", Icon: CircleDollarSign },
+  { to: "/trading", label: "AI Trade", Icon: ChartNoAxesCombined },
+  { to: "/wallet", label: "Wallet", Icon: WalletMinimal },
 ] as const;
 
 export default function BottomNav() {

@@ -1,85 +1,109 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
+import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { toast } from "sonner";
-import { ArrowUpRight, Copy } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import { CoinIcon } from "@/components/CoinIcon";
-import {
-  formatNumber,
-  progressPct,
-  shortAddress,
-} from "@/lib/tt";
 import { Button } from "@/components/ui/button";
-import {
-  listStakes,
-  type StakeRow,
-} from "@/lib/tt-data.functions";
-import { getTelegramUserSync } from "@/lib/telegram-user";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { getMarkets } from "@/lib/ai-trading.functions";
+import { getWalletBalance } from "@/lib/ton-trader.functions";
+import { ASSETS, TREASURY_WALLET, formatNumber, shortAddress, toNano } from "@/lib/tt";
 
 export const Route = createFileRoute("/wallet")({
-  head: () => ({
-    meta: [
-      { title: "Wallet — EGRAM" },
-      {
-        name: "description",
-        content:
-          "Track confirmed TON staking positions, projected rewards, and your connected wallet.",
-      },
-      { property: "og:title", content: "Wallet — EGRAM" },
-      {
-        property: "og:description",
-        content: "Confirmed TON staking positions and projected rewards in one clean portfolio.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: () => ({ meta: [
+    { title: "Wallet — EGRAM" },
+    { name: "description", content: "Your connected TON wallet balance and current asset prices." },
+    { property: "og:title", content: "Wallet — EGRAM" },
+    { property: "og:description", content: "Connected TON wallet balance and current asset prices." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: WalletPage,
 });
+
+type Market = { pair: string; price: number; change24h: number };
 
 function WalletPage() {
   const [tonConnectUI] = useTonConnectUI();
   const address = useTonAddress();
-  const tgUser = useMemo(() => getTelegramUserSync(), []);
-
-  const fetchStakes = useServerFn(listStakes);
-
-  const [stakes, setStakes] = useState<StakeRow[]>([]);
+  const fetchBalance = useServerFn(getWalletBalance);
+  const fetchMarkets = useServerFn(getMarkets);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [deposit, setDeposit] = useState("");
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetchStakes({ data: { telegramId: tgUser.id } }).then(setStakes).catch(() => undefined);
-  }, [fetchStakes, tgUser.id]);
+    fetchMarkets({}).then((result) => setMarkets(result.markets)).catch(() => undefined);
+  }, [fetchMarkets]);
 
-  const active = stakes.filter((stakeItem) => stakeItem.status === "active" && stakeItem.verified);
-  const confirmed = stakes.filter((stakeItem) => stakeItem.verified);
-  const total = active.reduce((sum, item) => sum + Number(item.ton_paid), 0);
-  const projected = active.reduce((sum, item) => sum + Number(item.amount) * Number(item.apy) * Number(item.lock_days) / 36_500, 0);
+  useEffect(() => {
+    if (!address) { setBalance(null); return; }
+    fetchBalance({ data: { address } })
+      .then((result) => setBalance(result.live ? result.balanceTon : null))
+      .catch(() => setBalance(null));
+  }, [address, fetchBalance]);
 
-    return (
-    <main className="mx-auto w-full max-w-md px-5 pt-5">
-      <header className="flex items-center justify-between">
-        <div><p className="text-[10px] font-semibold uppercase text-muted-foreground">Your portfolio</p><h1 className="display-type mt-1 text-[24px] font-semibold leading-none">Wallet</h1></div>
-        <Button onClick={() => (address ? tonConnectUI.disconnect() : tonConnectUI.openModal())} variant="outline" size="sm" className="tap-scale h-9 rounded-full bg-card px-4 text-[11px] font-semibold shadow-none">{address ? "Disconnect" : "Connect"}</Button>
-      </header>
+  const sendDeposit = async () => {
+    const amount = Number(deposit);
+    if (!address) { tonConnectUI.openModal(); return; }
+    if (!Number.isFinite(amount) || amount <= 0) { toast.error("Enter a valid TON amount"); return; }
+    setBusy(true);
+    try {
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+        messages: [{ address: TREASURY_WALLET, amount: toNano(amount) }],
+      });
+      setDepositOpen(false);
+      setDeposit("");
+      toast.success("Deposit submitted to TON network");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Transaction cancelled");
+    } finally { setBusy(false); }
+  };
 
-      <section className="graphite-card mt-5 p-5">
-        <div className="flex items-start justify-between">
-           <div><p className="text-[11px] font-medium text-primary-foreground/55">CONFIRMED STAKE</p><p className="display-type mt-2 text-[36px] font-semibold leading-none">{formatNumber(total)}</p><p className="mt-2 text-[12px] text-primary-foreground/55">TON across {active.length} active position{active.length === 1 ? "" : "s"}</p></div>
-          {address ? <Button onClick={() => { navigator.clipboard.writeText(address); toast.success("Address copied"); }} variant="ghost" size="icon" className="tap-scale rounded-full bg-primary-foreground/10 text-primary-foreground" aria-label="Copy address"><Copy className="h-4 w-4" strokeWidth={1.7} /></Button> : null}
-        </div>
-        <div className="mt-7 grid grid-cols-2 border-t border-primary-foreground/10 pt-4"><div><p className="text-[10px] text-primary-foreground/45">CONNECTED WALLET</p><p className="mt-1 text-[13px] font-semibold">{shortAddress(address)}</p></div><div className="text-right"><p className="text-[10px] text-primary-foreground/45">PROJECTED REWARD</p><p className="mt-1 text-[13px] font-semibold text-accent">+{formatNumber(projected, 2)} TON</p></div></div>
-      </section>
+  const priceFor = (symbol: string) => {
+    const pair = symbol === "GRAM" ? "TON/USDT" : symbol === "USDT" ? "USDT/USD" : `${symbol}/USDT`;
+    return markets.find((market) => market.pair === pair);
+  };
 
-      <div className="mt-4 grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-card py-3 text-center"><div><p className="text-[9px] text-muted-foreground">ACTIVE</p><p className="mt-1 text-[13px] font-semibold">{active.length}</p></div><div><p className="text-[9px] text-muted-foreground">HISTORY</p><p className="mt-1 text-[13px] font-semibold">{confirmed.length}</p></div><div><p className="text-[9px] text-muted-foreground">NETWORK</p><p className="mt-1 text-[13px] font-semibold">TON</p></div></div>
+  return <main className="mx-auto w-full max-w-md px-5 pt-5">
+    <header className="flex items-center justify-between">
+      <h1 className="display-type text-[24px] font-semibold leading-none">Wallet</h1>
+      <Button onClick={() => address ? tonConnectUI.disconnect() : tonConnectUI.openModal()} variant="outline" size="sm" className="tap-scale h-9 rounded-full bg-card px-4 text-[11px] font-semibold shadow-none">{address ? shortAddress(address) : "Connect"}</Button>
+    </header>
 
-      <section className="mt-7">
-        <div className="flex items-end justify-between px-1"><h2 className="display-type text-[18px] font-semibold">Positions</h2><span className="text-[11px] text-muted-foreground">On-chain confirmed</span></div>
-        {stakes.filter((s) => s.verified).length === 0 ? <div className="mt-2 border-y border-border py-7 text-center text-[12px] text-muted-foreground">No confirmed positions yet.</div> : <div className="mt-2 divide-y divide-border border-y border-border">{stakes.filter((s) => s.verified).map((s) => <div key={s.id} className="py-3.5"><div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><CoinIcon symbol={s.coin} className="h-8 w-8" /><div><p className="text-[13px] font-semibold">{s.coin === "GRAM" ? "GRAM (ex TON)" : s.coin}</p><p className="text-[10px] text-muted-foreground">{s.tier} · ends {new Date(s.ends_at).toLocaleDateString("en-US")}</p></div></div><div className="text-right"><p className="text-[14px] font-semibold">{formatNumber(Number(s.amount))} TON</p><p className="text-[10px] font-semibold text-success">{Number(s.apy)}% APY</p></div></div><div className="mt-3 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-success" style={{ width: `${progressPct(s.started_at, s.ends_at)}%` }} /></div></div>)}</div>}
-      </section>
+    <section className="wallet-balance mt-5">
+      <p className="text-[10px] font-semibold uppercase text-primary-foreground/50">Available balance</p>
+      <div className="mt-2 flex items-end gap-2"><p className="display-type text-[42px] font-semibold leading-none">{address ? balance === null ? "—" : formatNumber(balance, 3) : "0"}</p><span className="pb-1 text-[13px] font-semibold text-primary-foreground/55">TON</span></div>
+      <p className="mt-3 text-[11px] text-primary-foreground/50">{address ? shortAddress(address) : "Connect your TON wallet"}</p>
+      <div className="mt-6 grid grid-cols-2 gap-2">
+        <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
+          <DialogTrigger asChild><Button className="tap-scale h-12 rounded-xl bg-primary-foreground text-primary shadow-none hover:bg-primary-foreground/90"><ArrowDownToLine />Deposit</Button></DialogTrigger>
+          <DialogContent className="max-w-[calc(100%-40px)] rounded-2xl border-border p-5">
+            <DialogHeader><DialogTitle className="display-type text-left text-[20px]">Deposit TON</DialogTitle></DialogHeader>
+            <div className="mt-2 border-b border-border pb-3"><input autoFocus value={deposit} inputMode="decimal" onChange={(event) => setDeposit(event.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.00" className="display-type w-full bg-transparent text-[34px] font-semibold outline-none" /><span className="text-[11px] text-muted-foreground">TON</span></div>
+            <Button onClick={sendDeposit} disabled={busy} className="mt-2 h-12 rounded-xl">{busy ? "Confirming" : address ? "Continue" : "Connect wallet"}</Button>
+          </DialogContent>
+        </Dialog>
+        <Button asChild variant="secondary" className="tap-scale h-12 rounded-xl shadow-none"><a href="https://app.tonkeeper.com/" target="_blank" rel="noreferrer"><ArrowUpFromLine />Withdraw</a></Button>
+      </div>
+    </section>
 
-      <section className="mt-7"><Link to="/trading" className="community-link tap-scale"><div><p className="text-[13px] font-semibold">AI trading agent</p><p className="mt-1 text-[10px] text-muted-foreground">View live wallet, activation and confirmed trades</p></div><ArrowUpRight className="h-4 w-4 text-muted-foreground" strokeWidth={1.7} /></Link></section>
-    </main>
-  );
+    <section className="mt-8">
+      <h2 className="display-type px-1 text-[18px] font-semibold">Assets</h2>
+      <div className="mt-3 divide-y divide-border border-y border-border">
+        {ASSETS.map((asset) => {
+          const market = priceFor(asset.symbol);
+          return <div key={asset.symbol} className="flex items-center justify-between py-3.5">
+            <div className="flex items-center gap-3"><CoinIcon symbol={asset.symbol} className="h-9 w-9" /><div><p className="text-[13px] font-semibold">{asset.symbol}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{asset.name}</p></div></div>
+            <div className="text-right"><p className="text-[13px] font-semibold">{market ? `$${formatNumber(market.price, market.price < 1 ? 4 : 2)}` : "—"}</p><p className={market && market.change24h >= 0 ? "mt-0.5 text-[10px] font-medium text-success" : "mt-0.5 text-[10px] font-medium text-muted-foreground"}>{market ? `${market.change24h >= 0 ? "+" : ""}${market.change24h.toFixed(2)}%` : "Unavailable"}</p></div>
+          </div>;
+        })}
+      </div>
+    </section>
+  </main>;
 }
