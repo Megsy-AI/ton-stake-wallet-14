@@ -18,6 +18,8 @@ import {
 } from "@/lib/tt";
 import { createStake, listStakes, upsertUser, type StakeRow } from "@/lib/tt-api";
 import { getTelegramUserSync } from "@/lib/telegram-user";
+import { verifyPayment } from "@/lib/ton-verify.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,6 +49,7 @@ function StakePage() {
   const [amount, setAmount] = useState("200");
   const [busy, setBusy] = useState(false);
   const [stakes, setStakes] = useState<StakeRow[]>([]);
+  const verify = useServerFn(verifyPayment);
 
   const tgUser = useMemo(() => getTelegramUserSync(), []);
   const value = Number(amount) || 0;
@@ -67,6 +70,30 @@ function StakePage() {
     .filter((s) => s.status === "active")
     .reduce((sum, s) => sum + Number(s.amount), 0);
 
+  const confirmOnChain = async (refId: string, paid: number) => {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await new Promise((r) => setTimeout(r, 12_000));
+      try {
+        const res = await verify({
+          data: {
+            kind: "stake",
+            refId,
+            telegramId: tgUser.id,
+            amount: paid,
+            sender: address,
+          },
+        });
+        if (res.verified) {
+          toast.success("Payment confirmed on TON network");
+          setStakes(await listStakes(tgUser.id));
+          return;
+        }
+      } catch {
+        /* retry */
+      }
+    }
+  };
+
   const stake = async () => {
     if (!address) {
       tonConnectUI.openModal();
@@ -82,7 +109,7 @@ function StakePage() {
         validUntil: Math.floor(Date.now() / 1000) + 300,
         messages: [{ address: TREASURY_WALLET, amount: toNano(value) }],
       });
-      await createStake({
+      const created = await createStake({
         telegram_id: tgUser.id,
         wallet_address: address,
         coin: asset,
@@ -92,8 +119,9 @@ function StakePage() {
         lock_days: tier.lockDays,
         tx_hash: result?.boc ? result.boc.slice(0, 64) : null,
       });
-      toast.success(`${tier.name} stake opened`);
+      toast.success(`${tier.name} stake opened. Confirming on TON network`);
       setStakes(await listStakes(tgUser.id));
+      void confirmOnChain(created.id, value);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Transaction cancelled";
       toast.error(message);

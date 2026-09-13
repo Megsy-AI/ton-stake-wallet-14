@@ -1483,6 +1483,8 @@ export type Database = {
           telegram_id: number
           tx_hash: string | null
           updated_at: string
+          verified: boolean
+          verified_at: string | null
           wallet_address: string | null
         }
         Insert: {
@@ -1496,6 +1498,8 @@ export type Database = {
           telegram_id: number
           tx_hash?: string | null
           updated_at?: string
+          verified?: boolean
+          verified_at?: string | null
           wallet_address?: string | null
         }
         Update: {
@@ -1509,6 +1513,8 @@ export type Database = {
           telegram_id?: number
           tx_hash?: string | null
           updated_at?: string
+          verified?: boolean
+          verified_at?: string | null
           wallet_address?: string | null
         }
         Relationships: []
@@ -1576,12 +1582,15 @@ export type Database = {
           id: string
           lock_days: number
           rewards_claimed: number
+          sender_address: string | null
           started_at: string
           status: string
           telegram_id: number
           tier: string
           ton_paid: number
           tx_hash: string | null
+          verified: boolean
+          verified_at: string | null
           wallet_address: string | null
         }
         Insert: {
@@ -1593,12 +1602,15 @@ export type Database = {
           id?: string
           lock_days: number
           rewards_claimed?: number
+          sender_address?: string | null
           started_at?: string
           status?: string
           telegram_id: number
           tier: string
           ton_paid?: number
           tx_hash?: string | null
+          verified?: boolean
+          verified_at?: string | null
           wallet_address?: string | null
         }
         Update: {
@@ -1610,12 +1622,15 @@ export type Database = {
           id?: string
           lock_days?: number
           rewards_claimed?: number
+          sender_address?: string | null
           started_at?: string
           status?: string
           telegram_id?: number
           tier?: string
           ton_paid?: number
           tx_hash?: string | null
+          verified?: boolean
+          verified_at?: string | null
           wallet_address?: string | null
         }
         Relationships: []
@@ -1647,6 +1662,45 @@ export type Database = {
           updated_at?: string
           username?: string | null
           wallet_address?: string | null
+        }
+        Relationships: []
+      }
+      tt_wallet_ops: {
+        Row: {
+          amount: number
+          created_at: string
+          detail: Json
+          id: string
+          kind: string
+          ref_id: string | null
+          sender_address: string | null
+          status: string
+          telegram_id: number | null
+          tx_hash: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          detail?: Json
+          id?: string
+          kind: string
+          ref_id?: string | null
+          sender_address?: string | null
+          status?: string
+          telegram_id?: number | null
+          tx_hash?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          detail?: Json
+          id?: string
+          kind?: string
+          ref_id?: string | null
+          sender_address?: string | null
+          status?: string
+          telegram_id?: number | null
+          tx_hash?: string | null
         }
         Relationships: []
       }

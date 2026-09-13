@@ -12,6 +12,7 @@ export type StakeRow = {
   lock_days: number;
   tx_hash: string | null;
   status: string;
+  verified: boolean;
   rewards_claimed: number;
   started_at: string;
   ends_at: string;
@@ -27,6 +28,7 @@ export type BotRow = {
   pnl: number;
   risk: string;
   status: string;
+  verified: boolean;
   created_at: string;
 };
 
