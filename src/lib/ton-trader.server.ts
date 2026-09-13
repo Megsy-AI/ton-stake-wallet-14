@@ -10,7 +10,7 @@ export const JETTONS: Record<string, string> = {
   "TON/USDT": "EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs",
 };
 
-const ROUTER = "EQBCl1JANkTrGLwmyi6point8zqUS1AHJ8Ki01AsHhdaLbcp";
+const ROUTER = "EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt";
 const PTON = "EQBnGWMCf3-FZZq1W4IWcWiGAc3PHuZ0_H-7sad2oY00o83S";
 
 function endpoint(): string {

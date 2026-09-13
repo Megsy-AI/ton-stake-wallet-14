@@ -118,30 +118,6 @@ export async function getBot(telegramId: number): Promise<BotRow | null> {
   return (data as BotRow) ?? null;
 }
 
-export async function createBot(input: {
-  telegram_id: number;
-  wallet_address: string | null;
-  deposit: number;
-  risk: string;
-  tx_hash: string | null;
-}) {
-  const { data, error } = await supabase
-    .from("tt_ai_bots")
-    .insert({
-      telegram_id: input.telegram_id,
-      wallet_address: input.wallet_address,
-      deposit: input.deposit,
-      balance: input.deposit,
-      risk: input.risk,
-      tx_hash: input.tx_hash,
-      status: "running",
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as BotRow;
-}
-
 export async function listTrades(botId: string): Promise<TradeRow[]> {
   const { data } = await supabase
     .from("tt_ai_trades")
