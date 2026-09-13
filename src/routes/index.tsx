@@ -73,7 +73,7 @@ function StakePage() {
   const confirmedStakes = stakes.filter((s) => s.status === "active" && s.verified);
   const totalStaked = confirmedStakes.reduce((sum, s) => sum + Number(s.ton_paid), 0);
 
-  const confirmOnChain = async (refId: string, paid: number) => {
+  const confirmOnChain = async (refId: string) => {
     for (let attempt = 0; attempt < 10; attempt++) {
       await new Promise((r) => setTimeout(r, 12_000));
       try {
@@ -121,7 +121,7 @@ function StakePage() {
       });
       toast.success(`${tier.name} stake opened. Confirming on TON network`);
       setStakes(await fetchStakes({ data: { telegramId: tgUser.id } }));
-      void confirmOnChain(created.id, value);
+      void confirmOnChain(created.id);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Transaction cancelled";
       toast.error(message);
@@ -194,7 +194,7 @@ function StakePage() {
             const offer = STAKING_OFFERS[item.symbol as keyof typeof STAKING_OFFERS];
             const pair = item.symbol === "GRAM" ? "TON/USDT" : `${item.symbol}/USDT`;
             const market = markets.find((entry) => entry.pair === (item.symbol === "USDT" ? "USDT/USD" : pair));
-            return <button key={item.symbol} type="button" onClick={() => setAsset(item.symbol)} className={asset === item.symbol ? "asset-offer asset-offer-active" : "asset-offer"}><div className="flex min-w-0 items-center gap-3"><CoinIcon symbol={item.symbol} className="h-10 w-10" /><div className="min-w-0 text-left"><p className="text-[13px] font-semibold">{item.label}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{offer.description} · {offer.lockDays}+ days</p></div></div><div className="text-right"><p className="display-type text-[16px] font-semibold text-success">{offer.baseApy}–{offer.maxApy}%</p><p className="mt-0.5 text-[10px] text-muted-foreground">{market ? `$${formatNumber(market.price, 4)} · ${market.change24h >= 0 ? "+" : ""}${market.change24h.toFixed(2)}%` : "Price unavailable"}</p></div></button>;
+            return <Button key={item.symbol} type="button" variant="ghost" onClick={() => setAsset(item.symbol)} className={asset === item.symbol ? "asset-offer asset-offer-active h-auto" : "asset-offer h-auto"}><div className="flex min-w-0 items-center gap-3"><CoinIcon symbol={item.symbol} className="h-10 w-10" /><div className="min-w-0 text-left"><p className="text-[13px] font-semibold">{item.label}</p><p className="mt-0.5 text-[10px] font-normal text-muted-foreground">{offer.description} · {offer.lockDays}+ days</p></div></div><div className="text-right"><p className="display-type text-[16px] font-semibold text-success">{offer.baseApy}–{offer.maxApy}%</p><p className="mt-0.5 text-[10px] font-normal text-muted-foreground">{market ? `$${formatNumber(market.price, 4)} · ${market.change24h >= 0 ? "+" : ""}${market.change24h.toFixed(2)}%` : "Price unavailable"}</p></div></Button>;
           })}
         </div>
         <p className="mt-3 px-1 text-[10px] leading-relaxed text-muted-foreground">APY is projected and varies by amount and lock period. Prices are supplied by CoinGecko and are informational.</p>

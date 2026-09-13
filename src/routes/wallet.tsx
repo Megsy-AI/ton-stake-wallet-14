@@ -25,12 +25,12 @@ export const Route = createFileRoute("/wallet")({
       {
         name: "description",
         content:
-          "Track your TON wallet, active and past staking positions, and your AI trading bot performance.",
+          "Track confirmed TON staking positions, projected rewards, and your connected wallet.",
       },
       { property: "og:title", content: "Wallet — EGRAM" },
       {
         property: "og:description",
-        content: "Staking history and AI trading performance in one place.",
+        content: "Confirmed TON staking positions and projected rewards in one clean portfolio.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
