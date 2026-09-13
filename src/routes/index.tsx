@@ -144,7 +144,6 @@ function StakePage() {
           <div>
             <p className="text-[11px] font-medium text-primary-foreground/55">TOTAL STAKED</p>
             <p className="display-type mt-2 text-[36px] font-semibold leading-none">{formatNumber(totalStaked)}</p>
-            <p className="mt-2 text-[12px] text-primary-foreground/55">TON network · verified only</p>
           </div>
           <div className="rounded-full bg-primary-foreground/10 px-3 py-1.5 text-[11px] font-medium">{confirmedStakes.length} active</div>
         </div>
