@@ -1521,8 +1521,11 @@ export type Database = {
       }
       tt_ai_trades: {
         Row: {
+          actual_ask_amount: number | null
+          actual_offer_amount: number | null
           bot_id: string
           closed_at: string | null
+          confirmed_at: string | null
           entry_price: number
           exit_price: number | null
           id: string
@@ -1533,10 +1536,14 @@ export type Database = {
           size: number
           status: string
           telegram_id: number
+          tx_hash: string | null
         }
         Insert: {
+          actual_ask_amount?: number | null
+          actual_offer_amount?: number | null
           bot_id: string
           closed_at?: string | null
+          confirmed_at?: string | null
           entry_price: number
           exit_price?: number | null
           id?: string
@@ -1547,10 +1554,14 @@ export type Database = {
           size: number
           status?: string
           telegram_id: number
+          tx_hash?: string | null
         }
         Update: {
+          actual_ask_amount?: number | null
+          actual_offer_amount?: number | null
           bot_id?: string
           closed_at?: string | null
+          confirmed_at?: string | null
           entry_price?: number
           exit_price?: number | null
           id?: string
@@ -1561,6 +1572,7 @@ export type Database = {
           size?: number
           status?: string
           telegram_id?: number
+          tx_hash?: string | null
         }
         Relationships: [
           {
