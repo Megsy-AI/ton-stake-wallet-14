@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { ASSETS, MIN_STAKE, tierForAmount } from "@/lib/tt";
+import { ASSETS, STAKING_OFFERS, tierForAmount } from "@/lib/tt";
 
 export type StakeRow = {
   id: string;
@@ -61,13 +61,14 @@ export const createStakeIntent = createServerFn({ method: "POST" })
     (input: { telegramId: number; walletAddress: string; coin: string; amount: number }) => input,
   )
   .handler(async ({ data }) => {
-    if (!Number.isFinite(data.amount) || data.amount < MIN_STAKE) {
-      throw new Error(`Minimum stake is ${MIN_STAKE} TON`);
-    }
     if (!ASSETS.some((asset) => asset.symbol === data.coin)) {
       throw new Error("Unsupported staking asset");
     }
-    const tier = tierForAmount(data.amount);
+    const offer = STAKING_OFFERS[data.coin as keyof typeof STAKING_OFFERS];
+    if (!Number.isFinite(data.amount) || !offer || data.amount < offer.min) {
+      throw new Error(`Minimum ${data.coin} stake is ${offer?.min ?? 1} TON`);
+    }
+    const tier = tierForAmount(data.amount, data.coin);
     const startedAt = new Date();
     const endsAt = new Date(startedAt.getTime() + tier.lockDays * 86_400_000);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

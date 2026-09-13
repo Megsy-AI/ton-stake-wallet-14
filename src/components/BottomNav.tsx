@@ -1,10 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Layers2, WalletCards } from "lucide-react";
+import { Bot, Layers2, WalletCards } from "lucide-react";
 import { motion } from "framer-motion";
 
 const items = [
   { to: "/", label: "Stake", Icon: Layers2 },
   { to: "/wallet", label: "Wallet", Icon: WalletCards },
+  { to: "/trading", label: "AI Trade", Icon: Bot },
 ] as const;
 
 export default function BottomNav() {
@@ -12,7 +13,7 @@ export default function BottomNav() {
 
   return (
     <nav className="safe-bottom fixed inset-x-0 bottom-0 z-50 px-5 pb-3">
-      <div className="ios-tabbar mx-auto flex max-w-xs items-stretch rounded-[24px] p-1.5">
+      <div className="ios-tabbar mx-auto flex max-w-sm items-stretch rounded-[24px] p-1.5">
         {items.map(({ to, label, Icon }) => {
           const active = pathname === to;
           return (

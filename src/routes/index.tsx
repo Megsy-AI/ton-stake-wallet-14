@@ -3,13 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
 import { toast } from "sonner";
 import { ArrowUpRight } from "lucide-react";
-import gramCoin from "@/assets/gram.png.asset.json";
 import { CoinIcon } from "@/components/CoinIcon";
 import { Button } from "@/components/ui/button";
 import {
   ASSETS,
-  TIERS,
-  MIN_STAKE,
+  STAKING_OFFERS,
   TREASURY_WALLET,
   COMMUNITY_URL,
   estimateReward,
@@ -23,6 +21,7 @@ import { createStakeIntent, listStakes, type StakeRow } from "@/lib/tt-data.func
 import { getTelegramUserSync } from "@/lib/telegram-user";
 import { verifyPayment } from "@/lib/ton-verify.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { getMarkets } from "@/lib/ai-trading.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -54,23 +53,27 @@ function StakePage() {
   const [amount, setAmount] = useState("200");
   const [busy, setBusy] = useState(false);
   const [stakes, setStakes] = useState<StakeRow[]>([]);
+  const [markets, setMarkets] = useState<{ pair: string; price: number; change24h: number }[]>([]);
   const verify = useServerFn(verifyPayment);
   const fetchStakes = useServerFn(listStakes);
   const prepareStake = useServerFn(createStakeIntent);
+  const fetchMarkets = useServerFn(getMarkets);
 
   const tgUser = useMemo(() => getTelegramUserSync(), []);
   const value = Number(amount) || 0;
-  const tier = tierForAmount(value);
+  const selectedOffer = STAKING_OFFERS[asset as keyof typeof STAKING_OFFERS];
+  const tier = tierForAmount(value, asset);
   const reward = estimateReward(value, tier.apy, tier.lockDays);
 
   useEffect(() => {
     fetchStakes({ data: { telegramId: tgUser.id } }).then(setStakes).catch(() => undefined);
-  }, [tgUser.id, fetchStakes]);
+    fetchMarkets({}).then((result) => setMarkets(result.markets)).catch(() => undefined);
+  }, [tgUser.id, fetchStakes, fetchMarkets]);
 
   const confirmedStakes = stakes.filter((s) => s.status === "active" && s.verified);
   const totalStaked = confirmedStakes.reduce((sum, s) => sum + Number(s.ton_paid), 0);
 
-  const confirmOnChain = async (refId: string, paid: number) => {
+  const confirmOnChain = async (refId: string) => {
     for (let attempt = 0; attempt < 10; attempt++) {
       await new Promise((r) => setTimeout(r, 12_000));
       try {
@@ -98,8 +101,8 @@ function StakePage() {
       tonConnectUI.openModal();
       return;
     }
-    if (value < MIN_STAKE) {
-      toast.error(`Minimum stake is ${MIN_STAKE} TON`);
+    if (value < selectedOffer.min) {
+      toast.error(`Minimum ${asset} stake is ${selectedOffer.min} TON`);
       return;
     }
     setBusy(true);
@@ -118,7 +121,7 @@ function StakePage() {
       });
       toast.success(`${tier.name} stake opened. Confirming on TON network`);
       setStakes(await fetchStakes({ data: { telegramId: tgUser.id } }));
-      void confirmOnChain(created.id, value);
+      void confirmOnChain(created.id);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Transaction cancelled";
       toast.error(message);
@@ -130,13 +133,7 @@ function StakePage() {
   return (
     <main className="mx-auto w-full max-w-md px-5 pt-5">
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <img src={gramCoin.url} alt="Gram token" width={38} height={38} className="h-9.5 w-9.5 rounded-full" />
-          <div>
-            <h1 className="display-type text-[17px] font-semibold leading-none">EGRAM</h1>
-            <p className="mt-1 text-[10px] font-semibold uppercase text-muted-foreground">Staking protocol</p>
-          </div>
-        </div>
+        <div><p className="text-[10px] font-semibold uppercase text-muted-foreground">TON network</p><h1 className="display-type mt-1 text-[24px] font-semibold leading-none">Stake</h1></div>
         <Button onClick={() => (address ? tonConnectUI.disconnect() : tonConnectUI.openModal())} variant="outline" size="sm" className="tap-scale h-9 rounded-full border-border bg-card px-4 text-[11px] font-semibold shadow-none">
           {address ? shortAddress(address) : "Connect"}
         </Button>
@@ -152,7 +149,7 @@ function StakePage() {
           <div className="rounded-full bg-primary-foreground/10 px-3 py-1.5 text-[11px] font-medium">{confirmedStakes.length} active</div>
         </div>
         <div className="mt-7 flex items-end justify-between border-t border-primary-foreground/10 pt-4">
-          <div><p className="text-[10px] text-primary-foreground/45">CURRENT TIER</p><p className="mt-1 text-[13px] font-semibold">{tierForAmount(totalStaked || value).name}</p></div>
+           <div><p className="text-[10px] text-primary-foreground/45">CURRENT TIER</p><p className="mt-1 text-[13px] font-semibold">{tierForAmount(totalStaked || value, asset).name}</p></div>
           <div className="text-right"><p className="text-[10px] text-primary-foreground/45">SELECTED APY</p><p className="mt-1 text-[18px] font-semibold text-accent">{tier.apy}%</p></div>
         </div>
       </section>
@@ -190,15 +187,21 @@ function StakePage() {
         </Button>
       </section>
 
-      <section className="mt-7">
-        <div className="flex items-end justify-between px-1"><h2 className="display-type text-[18px] font-semibold">Yield levels</h2><span className="text-[11px] text-muted-foreground">Projected APY</span></div>
-        <div className="mt-2 divide-y divide-border border-y border-border">
-          {TIERS.map((t) => <div key={t.key} className="flex items-center justify-between py-3"><div><p className="text-[13px] font-semibold">{t.name}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{formatNumber(t.min)}{t.max ? ` – ${formatNumber(t.max)}` : "+"} TON · {t.lockDays} days</p></div><p className="display-type text-[16px] font-semibold text-success">{t.apy}%</p></div>)}
+      <section className="mt-8">
+        <div className="flex items-end justify-between px-1"><h2 className="display-type text-[18px] font-semibold">Asset offers</h2><span className="text-[11px] text-muted-foreground">Live market data</span></div>
+        <div className="mt-3 space-y-2">
+          {ASSETS.map((item) => {
+            const offer = STAKING_OFFERS[item.symbol as keyof typeof STAKING_OFFERS];
+            const pair = item.symbol === "GRAM" ? "TON/USDT" : `${item.symbol}/USDT`;
+            const market = markets.find((entry) => entry.pair === (item.symbol === "USDT" ? "USDT/USD" : pair));
+            return <Button key={item.symbol} type="button" variant="ghost" onClick={() => setAsset(item.symbol)} className={asset === item.symbol ? "asset-offer asset-offer-active h-auto" : "asset-offer h-auto"}><div className="flex min-w-0 items-center gap-3"><CoinIcon symbol={item.symbol} className="h-10 w-10" /><div className="min-w-0 text-left"><p className="text-[13px] font-semibold">{item.label}</p><p className="mt-0.5 text-[10px] font-normal text-muted-foreground">{offer.description} · {offer.lockDays}+ days</p></div></div><div className="text-right"><p className="display-type text-[16px] font-semibold text-success">{offer.baseApy}–{offer.maxApy}%</p><p className="mt-0.5 text-[10px] font-normal text-muted-foreground">{market ? `$${formatNumber(market.price, 4)} · ${market.change24h >= 0 ? "+" : ""}${market.change24h.toFixed(2)}%` : "Price unavailable"}</p></div></Button>;
+          })}
         </div>
+        <p className="mt-3 px-1 text-[10px] leading-relaxed text-muted-foreground">APY is projected and varies by amount and lock period. Prices are supplied by CoinGecko and are informational.</p>
       </section>
 
-      <section className="mt-7 border-t border-border pt-4" aria-label="Partners"><p className="text-[9px] font-semibold uppercase text-muted-foreground">Infrastructure partners</p><div className="mt-3 flex items-center justify-between text-[12px] font-semibold text-muted-foreground"><span>Google</span><span>Alibaba</span><span>Megsy AI</span></div></section>
-      <a href={COMMUNITY_URL} target="_blank" rel="noreferrer" className="tap-scale mt-5 flex items-center justify-between border-b border-border py-3 text-[13px] font-semibold">Join the community<ArrowUpRight className="h-4 w-4 text-muted-foreground" strokeWidth={1.7} /></a>
+      <section className="trust-panel mt-8" aria-label="Partners"><p className="text-[9px] font-semibold uppercase text-muted-foreground">Technology ecosystem</p><div className="mt-4 grid grid-cols-3 divide-x divide-border text-center text-[12px] font-semibold"><span>Google</span><span>Alibaba</span><span>Megsy AI</span></div></section>
+      <a href={COMMUNITY_URL} target="_blank" rel="noreferrer" className="community-link tap-scale mt-3"><div><p className="text-[13px] font-semibold">EGRAM community</p><p className="mt-1 text-[10px] text-muted-foreground">Updates, releases and support on Telegram</p></div><ArrowUpRight className="h-4 w-4 text-muted-foreground" strokeWidth={1.7} /></a>
     </main>
   );
 }
