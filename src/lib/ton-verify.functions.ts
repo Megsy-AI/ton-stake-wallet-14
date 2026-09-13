@@ -49,15 +49,27 @@ export const verifyPayment = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const table = data.kind === "stake" ? "tt_stakes" : "tt_ai_bots";
-    const referenceQuery =
+    const { data: stakeReference } =
       data.kind === "stake"
-        ? supabaseAdmin.from("tt_stakes").select("telegram_id, ton_paid, created_at")
-        : supabaseAdmin.from("tt_ai_bots").select("telegram_id, deposit, created_at");
-    const { data: reference } = await referenceQuery.eq("id", data.refId).maybeSingle();
+        ? await supabaseAdmin
+            .from("tt_stakes")
+            .select("telegram_id, ton_paid, created_at")
+            .eq("id", data.refId)
+            .maybeSingle()
+        : { data: null };
+    const { data: botReference } =
+      data.kind === "bot"
+        ? await supabaseAdmin
+            .from("tt_ai_bots")
+            .select("telegram_id, deposit, created_at")
+            .eq("id", data.refId)
+            .maybeSingle()
+        : { data: null };
+    const reference = stakeReference ?? botReference;
     if (!reference || Number(reference.telegram_id) !== data.telegramId) {
       return { verified: false, reason: "invalid_reference" };
     }
-    const expectedAmount = Number("ton_paid" in reference ? reference.ton_paid : reference.deposit);
+    const expectedAmount = Number(stakeReference?.ton_paid ?? botReference?.deposit);
     if (!Number.isFinite(expectedAmount) || expectedAmount <= 0) {
       return { verified: false, reason: "invalid_amount" };
     }
@@ -122,16 +134,27 @@ export const verifyPayment = createServerFn({ method: "POST" })
       .limit(1);
     if (reused?.length) return { verified: false, reason: "payment_already_used" };
 
-    await supabaseAdmin
-      .from(table)
-      .update({
-        verified: true,
-        verified_at: new Date().toISOString(),
-        tx_hash: matched.hash,
-        ...(data.kind === "bot" ? { status: "running" } : {}),
-        ...(data.kind === "stake" ? { sender_address: data.sender } : {}),
-      })
-      .eq("id", data.refId);
+    if (data.kind === "stake") {
+      await supabaseAdmin
+        .from("tt_stakes")
+        .update({
+          verified: true,
+          verified_at: new Date().toISOString(),
+          tx_hash: matched.hash,
+          sender_address: data.sender,
+        })
+        .eq("id", data.refId);
+    } else {
+      await supabaseAdmin
+        .from("tt_ai_bots")
+        .update({
+          verified: true,
+          verified_at: new Date().toISOString(),
+          tx_hash: matched.hash,
+          status: "running",
+        })
+        .eq("id", data.refId);
+    }
 
     await supabaseAdmin.from("tt_wallet_ops").insert({
       telegram_id: data.telegramId,
