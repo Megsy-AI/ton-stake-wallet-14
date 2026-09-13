@@ -1,5 +1,3 @@
-import { beginCell } from "@ton/core";
-
 export const TREASURY_WALLET = "UQAp1QxnLJ2z44IooUovvtVShw7hJBEdxCRV3RlbCYC3D8qj";
 
 export const COMMUNITY_URL = "https://t.me/goacco";
@@ -49,7 +47,11 @@ export function toNano(amount: number): string {
   return BigInt(Math.round(amount * 1e9)).toString();
 }
 
-export function paymentComment(refId: string): string {
+export async function paymentComment(refId: string): Promise<string> {
+  const [{ Buffer }, { beginCell }] = await Promise.all([import("buffer"), import("@ton/core")]);
+  if (!(globalThis as typeof globalThis & { Buffer?: typeof Buffer }).Buffer) {
+    (globalThis as typeof globalThis & { Buffer?: typeof Buffer }).Buffer = Buffer;
+  }
   return beginCell().storeUint(0, 32).storeStringTail(`tt:${refId}`).endCell().toBoc().toString("base64");
 }
 

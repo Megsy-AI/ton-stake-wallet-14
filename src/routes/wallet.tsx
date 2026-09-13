@@ -36,13 +36,13 @@ import { getTelegramUserSync } from "@/lib/telegram-user";
 export const Route = createFileRoute("/wallet")({
   head: () => ({
     meta: [
-      { title: "Wallet — Gram Staking" },
+      { title: "Wallet — EGRAM" },
       {
         name: "description",
         content:
           "Track your TON wallet, active and past staking positions, and your AI trading bot performance.",
       },
-      { property: "og:title", content: "Wallet — Gram Staking" },
+      { property: "og:title", content: "Wallet — EGRAM" },
       {
         property: "og:description",
         content: "Staking history and AI trading performance in one place.",
@@ -149,7 +149,7 @@ function WalletPage() {
       });
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 300,
-        messages: [{ address: TREASURY_WALLET, amount: toNano(value), payload: paymentComment(created.id) }],
+        messages: [{ address: TREASURY_WALLET, amount: toNano(value), payload: await paymentComment(created.id) }],
       });
       toast.success("Trading bot started. Confirming payment on TON network");
       await refresh();
@@ -187,7 +187,10 @@ function WalletPage() {
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img src={gramCoin.url} alt="Gram token" width={36} height={36} className="h-9 w-9" />
-          <h1 className="text-[17px] font-semibold">Wallet</h1>
+          <div>
+            <p className="text-[11px] font-medium text-muted-foreground">EGRAM</p>
+            <h1 className="text-[18px] font-semibold leading-tight">Wallet</h1>
+          </div>
         </div>
         <Button
           onClick={() => (address ? tonConnectUI.disconnect() : tonConnectUI.openModal())}
