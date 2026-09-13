@@ -1471,6 +1471,185 @@ export type Database = {
           },
         ]
       }
+      tt_ai_bots: {
+        Row: {
+          balance: number
+          created_at: string
+          deposit: number
+          id: string
+          pnl: number
+          risk: string
+          status: string
+          telegram_id: number
+          tx_hash: string | null
+          updated_at: string
+          wallet_address: string | null
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          deposit?: number
+          id?: string
+          pnl?: number
+          risk?: string
+          status?: string
+          telegram_id: number
+          tx_hash?: string | null
+          updated_at?: string
+          wallet_address?: string | null
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          deposit?: number
+          id?: string
+          pnl?: number
+          risk?: string
+          status?: string
+          telegram_id?: number
+          tx_hash?: string | null
+          updated_at?: string
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
+      tt_ai_trades: {
+        Row: {
+          bot_id: string
+          closed_at: string | null
+          entry_price: number
+          exit_price: number | null
+          id: string
+          opened_at: string
+          pair: string
+          pnl: number
+          side: string
+          size: number
+          status: string
+          telegram_id: number
+        }
+        Insert: {
+          bot_id: string
+          closed_at?: string | null
+          entry_price: number
+          exit_price?: number | null
+          id?: string
+          opened_at?: string
+          pair: string
+          pnl?: number
+          side: string
+          size: number
+          status?: string
+          telegram_id: number
+        }
+        Update: {
+          bot_id?: string
+          closed_at?: string | null
+          entry_price?: number
+          exit_price?: number | null
+          id?: string
+          opened_at?: string
+          pair?: string
+          pnl?: number
+          side?: string
+          size?: number
+          status?: string
+          telegram_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tt_ai_trades_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "tt_ai_bots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tt_stakes: {
+        Row: {
+          amount: number
+          apy: number
+          coin: string
+          created_at: string
+          ends_at: string
+          id: string
+          lock_days: number
+          rewards_claimed: number
+          started_at: string
+          status: string
+          telegram_id: number
+          tier: string
+          ton_paid: number
+          tx_hash: string | null
+          wallet_address: string | null
+        }
+        Insert: {
+          amount: number
+          apy: number
+          coin?: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          lock_days: number
+          rewards_claimed?: number
+          started_at?: string
+          status?: string
+          telegram_id: number
+          tier: string
+          ton_paid?: number
+          tx_hash?: string | null
+          wallet_address?: string | null
+        }
+        Update: {
+          amount?: number
+          apy?: number
+          coin?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          lock_days?: number
+          rewards_claimed?: number
+          started_at?: string
+          status?: string
+          telegram_id?: number
+          tier?: string
+          ton_paid?: number
+          tx_hash?: string | null
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
+      tt_users: {
+        Row: {
+          created_at: string
+          first_name: string | null
+          id: string
+          telegram_id: number
+          updated_at: string
+          username: string | null
+          wallet_address: string | null
+        }
+        Insert: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          telegram_id: number
+          updated_at?: string
+          username?: string | null
+          wallet_address?: string | null
+        }
+        Update: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          telegram_id?: number
+          updated_at?: string
+          username?: string | null
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
       user_nfts: {
         Row: {
           created_at: string

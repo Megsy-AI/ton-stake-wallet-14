@@ -1,9 +1,9 @@
 export interface TelegramUserInfo {
   id: number;
   first_name: string;
-  last_name?: string;
-  username?: string;
-  photo_url?: string;
+  last_name?: string | undefined;
+  username?: string | undefined;
+  photo_url?: string | undefined;
   isReal: boolean;
 }
 
