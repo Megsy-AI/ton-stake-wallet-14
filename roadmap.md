@@ -8,3 +8,5 @@
 - [x] Rename the app to EGRAM across visible branding and metadata.
 - [x] Redesign bottom navigation and navigation tabs with iOS-style motion and new icons.
 - [x] Add a restrained partnerships strip for Google, Alibaba, and Megsy AI.
+- [ ] Rebuild Stake and Wallet with a premium white trading-app visual system inspired by the supplied references.
+- [ ] Verify the redesigned screens at the current 434×716 mobile viewport.
