@@ -80,6 +80,15 @@ export const runAiCycle = createServerFn({ method: "POST" })
       if (!shouldClose) return { ok: true, action: "hold" };
 
       const pnl = Number(open.size) * directional;
+      if (process.env["TT_TRADING_WALLET_MNEMONIC"]) {
+        try {
+          const trader = await import("@/lib/ton-trader.server");
+          const units = await trader.jettonBalance(open.pair);
+          if (units > 0n) await trader.sellForTon(open.pair, units);
+        } catch (err) {
+          console.error("live sell failed", err);
+        }
+      }
       await supabase
         .from("tt_ai_trades")
         .update({
@@ -106,6 +115,17 @@ export const runAiCycle = createServerFn({ method: "POST" })
     const size = Number(bot.balance) * (RISK_SIZE[bot.risk] ?? 0.2);
     if (size <= 0) return { ok: false, reason: "no_balance" };
 
+    let live = false;
+    if (process.env["TT_TRADING_WALLET_MNEMONIC"] && pick.change24h >= 0) {
+      try {
+        const trader = await import("@/lib/ton-trader.server");
+        await trader.buyWithTon(pick.pair, Math.min(size, 5));
+        live = true;
+      } catch (err) {
+        console.error("live buy failed", err);
+      }
+    }
+
     await supabase.from("tt_ai_trades").insert({
       bot_id: bot.id,
       telegram_id: bot.telegram_id,
@@ -114,6 +134,7 @@ export const runAiCycle = createServerFn({ method: "POST" })
       size,
       entry_price: pick.price,
       status: "open",
+      pnl: 0,
     });
-    return { ok: true, action: "open", pair: pick.pair };
+    return { ok: true, action: "open", pair: pick.pair, live };
   });
