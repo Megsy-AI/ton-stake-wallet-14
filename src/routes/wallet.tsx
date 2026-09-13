@@ -115,6 +115,72 @@ function WalletPage() {
     };
     tick();
     const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, [bot?.id, bot?.status, cycle, refresh]);
+
+  const active = stakes.filter((stakeItem) => stakeItem.status === "active" && stakeItem.verified);
+  const tonPrice = markets.find((market) => market.pair === "TON/USDT")?.price ?? 0;
+  const activationTon = tonPrice > 0 ? BOT_ACTIVATION_USD / tonPrice : 0;
+
+  const startBot = async () => {
+    const value = Number(deposit) || 0;
+    if (!address) {
+      tonConnectUI.openModal();
+      return;
+    }
+    if (!tonPrice) {
+      toast.error("Live TON price is unavailable. Please try again.");
+      return;
+    }
+    if (value < activationTon) {
+      toast.error(`Activation requires $${BOT_ACTIVATION_USD} in TON`);
+      return;
+    }
+    setBusy(true);
+    try {
+      const created = await createBot({
+        data: {
+          telegramId: tgUser.id,
+          walletAddress: address,
+          depositTon: value,
+          risk: risk as (typeof RISKS)[number],
+          txHash: null,
+        },
+      });
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+        messages: [{
+          address: TREASURY_WALLET,
+          amount: toNano(value),
+          payload: await paymentComment(created.id),
+        }],
+      });
+      toast.success("Trading bot started. Confirming payment on TON network");
+      await refresh();
+      void (async () => {
+        for (let attempt = 0; attempt < 10; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, 12_000));
+          try {
+            const result = await verify({
+              data: { kind: "bot", refId: created.id, telegramId: tgUser.id, sender: address },
+            });
+            if (result.verified) {
+              toast.success("Deposit confirmed on TON network");
+              await refresh();
+              return;
+            }
+          } catch {
+            /* retry */
+          }
+        }
+      })();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Transaction cancelled");
+    } finally {
+      setBusy(false);
+    }
+  };
+
     return (
     <main className="mx-auto w-full max-w-md px-5 pt-5">
       <header className="flex items-center justify-between">
