@@ -67,7 +67,7 @@ export const createStakeIntent = createServerFn({ method: "POST" })
     if (!ASSETS.some((asset) => asset.symbol === data.coin)) {
       throw new Error("Unsupported staking asset");
     }
-    const tier = tierForAmount(data.amount);
+    const tier = tierForAmount(data.amount, data.coin);
     const startedAt = new Date();
     const endsAt = new Date(startedAt.getTime() + tier.lockDays * 86_400_000);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

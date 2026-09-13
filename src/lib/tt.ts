@@ -25,22 +25,35 @@ export type Tier = {
   lockDays: number;
 };
 
+export const STAKING_OFFERS = {
+  GRAM: { baseApy: 18, maxApy: 52, lockDays: 120, min: 1, description: "Network growth" },
+  USDT: { baseApy: 11, maxApy: 28, lockDays: 60, min: 10, description: "Stablecoin yield" },
+  NOT: { baseApy: 20, maxApy: 58, lockDays: 90, min: 50, description: "Ecosystem rewards" },
+  DOGS: { baseApy: 22, maxApy: 62, lockDays: 90, min: 100, description: "Community pool" },
+} as const;
+
 export const TIERS: Tier[] = [
-  { key: "core", name: "Core", min: 1, max: 49, apy: 12, lockDays: 30 },
-  { key: "plus", name: "Plus", min: 50, max: 199, apy: 18, lockDays: 60 },
-  { key: "prime", name: "Prime", min: 200, max: 999, apy: 26, lockDays: 90 },
-  { key: "elite", name: "Elite", min: 1000, max: 4999, apy: 34, lockDays: 120 },
-  { key: "titan", name: "Titan", min: 5000, max: null, apy: 45, lockDays: 180 },
+  { key: "core", name: "Core", min: 1, max: 49, apy: 18, lockDays: 30 },
+  { key: "plus", name: "Plus", min: 50, max: 199, apy: 26, lockDays: 60 },
+  { key: "prime", name: "Prime", min: 200, max: 999, apy: 36, lockDays: 90 },
+  { key: "elite", name: "Elite", min: 1000, max: 4999, apy: 45, lockDays: 120 },
+  { key: "titan", name: "Titan", min: 5000, max: null, apy: 52, lockDays: 180 },
 ];
 
 export const MIN_STAKE = TIERS[0]!.min;
 
-export function tierForAmount(amount: number): Tier {
+export function tierForAmount(amount: number, symbol = "GRAM"): Tier {
   let match = TIERS[0] as Tier;
   for (const tier of TIERS) {
     if (amount >= tier.min) match = tier;
   }
-  return match;
+  const offer = STAKING_OFFERS[symbol as keyof typeof STAKING_OFFERS] ?? STAKING_OFFERS.GRAM;
+  const progress = TIERS.findIndex((tier) => tier.key === match.key) / (TIERS.length - 1);
+  return {
+    ...match,
+    apy: Math.round(offer.baseApy + (offer.maxApy - offer.baseApy) * progress),
+    lockDays: Math.max(match.lockDays, offer.lockDays),
+  };
 }
 
 export function toNano(amount: number): string {

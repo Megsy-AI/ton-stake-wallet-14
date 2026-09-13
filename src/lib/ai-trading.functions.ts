@@ -6,6 +6,7 @@ export const BOT_ACTIVATION_USD = 500;
 
 const MARKET_IDS: Record<string, string> = {
   "TON/USDT": "the-open-network",
+  "USDT/USD": "tether",
   "NOT/USDT": "notcoin",
   "DOGS/USDT": "dogs-2",
 };
