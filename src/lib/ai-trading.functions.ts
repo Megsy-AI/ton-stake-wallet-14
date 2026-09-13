@@ -155,8 +155,11 @@ export const runAiCycle = createServerFn({ method: "POST" })
         live = true;
       } catch (err) {
         console.error("live buy failed", err);
+        return { ok: false, reason: "live_buy_failed" };
       }
     }
+
+    if (!live) return { ok: true, action: "hold", reason: "no_live_signal" };
 
     await supabaseAdmin.from("tt_ai_trades").insert({
       bot_id: bot.id,
