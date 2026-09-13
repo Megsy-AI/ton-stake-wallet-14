@@ -212,6 +212,19 @@ function WalletPage() {
                     )}
                   </span>
                 </div>
+                {s.status === "active" && new Date(s.ends_at).getTime() <= Date.now() ? (
+                  <button
+                    onClick={() => claim(s)}
+                    className="tap-scale mt-3 w-full rounded-xl bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground"
+                  >
+                    Claim rewards
+                  </button>
+                ) : null}
+                {s.status === "completed" ? (
+                  <p className="mt-2 text-[12px] text-muted-foreground">
+                    Claimed {formatNumber(Number(s.rewards_claimed), 3)} {s.coin}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>
