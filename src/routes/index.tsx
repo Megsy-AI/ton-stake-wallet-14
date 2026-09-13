@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ArrowUpRight, Check } from "lucide-react";
 import gramCoin from "@/assets/gram.png.asset.json";
 import { CoinIcon } from "@/components/CoinIcon";
+import { Button } from "@/components/ui/button";
 import {
   ASSETS,
   TIERS,

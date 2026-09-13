@@ -23,8 +23,8 @@ export default function BottomNav() {
               <Icon
                 className={
                   active
-                    ? "h-[22px] w-[22px] text-primary"
-                    : "h-[22px] w-[22px] text-muted-foreground"
+                     ? "h-5 w-5 text-primary"
+                     : "h-5 w-5 text-muted-foreground"
                 }
                 strokeWidth={active ? 2.1 : 1.7}
               />
