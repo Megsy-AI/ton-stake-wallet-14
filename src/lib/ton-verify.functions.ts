@@ -61,6 +61,22 @@ export const verifyPayment = createServerFn({ method: "POST" })
     if (!Number.isFinite(expectedAmount) || expectedAmount <= 0) {
       return { verified: false, reason: "invalid_amount" };
     }
+    if (data.kind === "bot") {
+      try {
+        const res = await fetch(
+          "https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd",
+          { headers: { accept: "application/json" } },
+        );
+        const prices = (await res.json()) as { "the-open-network"?: { usd?: number } };
+        const tonUsd = Number(prices["the-open-network"]?.usd);
+        if (!res.ok || !Number.isFinite(tonUsd)) throw new Error("price_unavailable");
+        if (expectedAmount * tonUsd < 497.5) {
+          return { verified: false, reason: "insufficient_amount" };
+        }
+      } catch {
+        return { verified: false, reason: "price_unavailable" };
+      }
+    }
 
     let matched: Incoming | undefined;
     try {
