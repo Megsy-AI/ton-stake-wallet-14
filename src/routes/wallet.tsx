@@ -4,7 +4,8 @@ import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Activity, Bot, Copy, LineChart, Wallet2 } from "lucide-react";
-import gramCoin from "@/assets/gram-coin.png";
+import gramCoin from "@/assets/gram.png.asset.json";
+import { CoinIcon } from "@/components/CoinIcon";
 import {
   TREASURY_WALLET,
   accruedReward,
@@ -15,7 +16,6 @@ import {
 } from "@/lib/tt";
 import {
   claimStake,
-  createBot,
   getBot,
   listStakes,
   listTrades,
@@ -23,7 +23,12 @@ import {
   type StakeRow,
   type TradeRow,
 } from "@/lib/tt-api";
-import { getMarkets, runAiCycle } from "@/lib/ai-trading.functions";
+import {
+  BOT_ACTIVATION_USD,
+  createTradingBot,
+  getMarkets,
+  runAiCycle,
+} from "@/lib/ai-trading.functions";
 import { verifyPayment } from "@/lib/ton-verify.functions";
 import { getAgentWallet } from "@/lib/ton-trader.functions";
 import { getTelegramUserSync } from "@/lib/telegram-user";
@@ -42,6 +47,8 @@ export const Route = createFileRoute("/wallet")({
         property: "og:description",
         content: "Staking history and AI trading performance in one place.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: WalletPage,
@@ -58,12 +65,13 @@ function WalletPage() {
   const cycle = useServerFn(runAiCycle);
   const verify = useServerFn(verifyPayment);
   const fetchAgent = useServerFn(getAgentWallet);
+  const createBot = useServerFn(createTradingBot);
 
   const [stakes, setStakes] = useState<StakeRow[]>([]);
   const [bot, setBot] = useState<BotRow | null>(null);
   const [trades, setTrades] = useState<TradeRow[]>([]);
   const [markets, setMarkets] = useState<{ pair: string; price: number; change24h: number }[]>([]);
-  const [deposit, setDeposit] = useState("25");
+  const [deposit, setDeposit] = useState("");
   const [risk, setRisk] = useState<string>("balanced");
   const [busy, setBusy] = useState(false);
   const [agent, setAgent] = useState<{
@@ -109,6 +117,8 @@ function WalletPage() {
     (sum, s) => sum + accruedReward(Number(s.amount), Number(s.apy), s.started_at, s.ends_at),
     0,
   );
+  const tonPrice = markets.find((market) => market.pair === "TON/USDT")?.price ?? 0;
+  const activationTon = tonPrice > 0 ? BOT_ACTIVATION_USD / tonPrice : 0;
 
   const claim = async (s: StakeRow) => {
     const rewards = accruedReward(Number(s.amount), Number(s.apy), s.started_at, s.ends_at);
@@ -127,8 +137,12 @@ function WalletPage() {
       tonConnectUI.openModal();
       return;
     }
-    if (value < 5) {
-      toast.error("Minimum deposit is 5 TON");
+    if (!tonPrice) {
+      toast.error("Live TON price is unavailable. Please try again.");
+      return;
+    }
+    if (value < activationTon) {
+      toast.error(`Activation requires $${BOT_ACTIVATION_USD} in TON`);
       return;
     }
     setBusy(true);
@@ -138,11 +152,13 @@ function WalletPage() {
         messages: [{ address: TREASURY_WALLET, amount: toNano(value) }],
       });
       const created = await createBot({
-        telegram_id: tgUser.id,
-        wallet_address: address,
-        deposit: value,
-        risk,
-        tx_hash: result?.boc ? result.boc.slice(0, 64) : null,
+        data: {
+          telegramId: tgUser.id,
+          walletAddress: address,
+          depositTon: value,
+          risk: risk as (typeof RISKS)[number],
+          txHash: result?.boc ? result.boc.slice(0, 64) : null,
+        },
       });
       toast.success("Trading bot started. Confirming payment on TON network");
       await refresh();
@@ -180,7 +196,7 @@ function WalletPage() {
     <main className="mx-auto w-full max-w-md px-5 pt-6">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src={gramCoin} alt="Gram token" width={36} height={36} className="h-9 w-9" />
+          <img src={gramCoin.url} alt="Gram token" width={36} height={36} className="h-9 w-9" />
           <h1 className="text-[17px] font-semibold">Wallet</h1>
         </div>
         <button
@@ -236,9 +252,12 @@ function WalletPage() {
             {stakes.map((s) => (
               <div key={s.id} className="px-4 py-3.5">
                 <div className="flex items-center justify-between">
-                  <p className="text-[14px] font-medium">
-                    {formatNumber(Number(s.amount))} TON · {s.coin}
-                  </p>
+                  <div className="flex items-center gap-2.5">
+                    <CoinIcon symbol={s.coin} className="h-7 w-7" />
+                    <p className="text-[14px] font-medium">
+                      {formatNumber(Number(s.amount))} TON · {s.coin === "GRAM" ? "GRAM (ex TON)" : s.coin}
+                    </p>
+                  </div>
                   <p className="text-[13px] font-semibold text-success">{Number(s.apy)}%</p>
                 </div>
                 <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted">
@@ -377,13 +396,23 @@ function WalletPage() {
           </div>
         ) : (
           <div className="ios-card mt-3 p-5">
-            <label className="text-[12px] text-muted-foreground" htmlFor="deposit">
-              Deposit in TON
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-[12px] text-muted-foreground">Activation</p>
+                <p className="mt-0.5 text-[20px] font-semibold">${BOT_ACTIVATION_USD}</p>
+              </div>
+              <p className="text-right text-[12px] text-muted-foreground">
+                {activationTon > 0 ? `≈ ${formatNumber(activationTon, 3)} TON` : "Loading TON price"}
+              </p>
+            </div>
+            <label className="mt-4 block text-[12px] text-muted-foreground" htmlFor="deposit">
+              Payment amount in TON
             </label>
             <input
               id="deposit"
               inputMode="decimal"
               value={deposit}
+              placeholder={activationTon > 0 ? activationTon.toFixed(3) : ""}
               onChange={(e) => setDeposit(e.target.value.replace(/[^0-9.]/g, ""))}
               className="mt-1 w-full bg-transparent text-[28px] font-semibold tracking-tight outline-none"
             />
@@ -407,7 +436,7 @@ function WalletPage() {
               disabled={busy}
               className="tap-scale mt-4 w-full rounded-2xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
             >
-              {busy ? "Confirming" : address ? "Start trading bot" : "Connect wallet"}
+              {busy ? "Confirming" : address ? `Activate for $${BOT_ACTIVATION_USD}` : "Connect wallet"}
             </button>
             <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
               The bot trades live TON market data with your selected risk level. Markets move, so
