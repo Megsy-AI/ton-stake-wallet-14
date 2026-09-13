@@ -46,9 +46,9 @@ export type TradeRow = {
 
 export async function upsertUser(user: {
   telegram_id: number;
-  username?: string;
-  first_name?: string;
-  wallet_address?: string | null;
+  username?: string | undefined;
+  first_name?: string | undefined;
+  wallet_address?: string | null | undefined;
 }) {
   await supabase
     .from("tt_users")

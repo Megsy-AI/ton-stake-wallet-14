@@ -102,6 +102,7 @@ export const runAiCycle = createServerFn({ method: "POST" })
 
     const ranked = [...markets].sort((a, b) => Math.abs(b.change24h) - Math.abs(a.change24h));
     const pick = ranked[0];
+    if (!pick) return { ok: false, reason: "no_market_data" };
     const size = Number(bot.balance) * (RISK_SIZE[bot.risk] ?? 0.2);
     if (size <= 0) return { ok: false, reason: "no_balance" };
 

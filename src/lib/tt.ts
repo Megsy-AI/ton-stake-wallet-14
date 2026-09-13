@@ -32,8 +32,10 @@ export const TIERS: Tier[] = [
   { key: "titan", name: "Titan", min: 5000, max: null, apy: 45, lockDays: 180 },
 ];
 
+export const MIN_STAKE = TIERS[0]!.min;
+
 export function tierForAmount(amount: number): Tier {
-  let match = TIERS[0];
+  let match = TIERS[0] as Tier;
   for (const tier of TIERS) {
     if (amount >= tier.min) match = tier;
   }

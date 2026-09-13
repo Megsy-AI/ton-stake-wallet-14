@@ -7,6 +7,7 @@ import gramCoin from "@/assets/gram-coin.png";
 import {
   ASSETS,
   TIERS,
+  MIN_STAKE,
   TREASURY_WALLET,
   COMMUNITY_URL,
   estimateReward,
@@ -71,8 +72,8 @@ function StakePage() {
       tonConnectUI.openModal();
       return;
     }
-    if (value < TIERS[0].min) {
-      toast.error(`Minimum stake is ${TIERS[0].min} TON`);
+    if (value < MIN_STAKE) {
+      toast.error(`Minimum stake is ${MIN_STAKE} TON`);
       return;
     }
     setBusy(true);
