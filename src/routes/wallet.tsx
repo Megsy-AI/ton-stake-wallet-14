@@ -24,6 +24,7 @@ import {
   type TradeRow,
 } from "@/lib/tt-api";
 import { getMarkets, runAiCycle } from "@/lib/ai-trading.functions";
+import { verifyPayment } from "@/lib/ton-verify.functions";
 import { getTelegramUserSync } from "@/lib/telegram-user";
 
 export const Route = createFileRoute("/wallet")({
@@ -54,6 +55,7 @@ function WalletPage() {
 
   const fetchMarkets = useServerFn(getMarkets);
   const cycle = useServerFn(runAiCycle);
+  const verify = useServerFn(verifyPayment);
 
   const [stakes, setStakes] = useState<StakeRow[]>([]);
   const [bot, setBot] = useState<BotRow | null>(null);
@@ -125,15 +127,38 @@ function WalletPage() {
         validUntil: Math.floor(Date.now() / 1000) + 300,
         messages: [{ address: TREASURY_WALLET, amount: toNano(value) }],
       });
-      await createBot({
+      const created = await createBot({
         telegram_id: tgUser.id,
         wallet_address: address,
         deposit: value,
         risk,
         tx_hash: result?.boc ? result.boc.slice(0, 64) : null,
       });
-      toast.success("Trading bot started");
+      toast.success("Trading bot started. Confirming payment on TON network");
       await refresh();
+      void (async () => {
+        for (let attempt = 0; attempt < 10; attempt++) {
+          await new Promise((r) => setTimeout(r, 12_000));
+          try {
+            const res = await verify({
+              data: {
+                kind: "bot",
+                refId: created.id,
+                telegramId: tgUser.id,
+                amount: value,
+                sender: address,
+              },
+            });
+            if (res.verified) {
+              toast.success("Deposit confirmed on TON network");
+              await refresh();
+              return;
+            }
+          } catch {
+            /* retry */
+          }
+        }
+      })();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Transaction cancelled");
     } finally {
@@ -214,7 +239,8 @@ function WalletPage() {
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[12px] text-muted-foreground">
                   <span>
-                    {s.tier} · ends {new Date(s.ends_at).toLocaleDateString("en-US")}
+                    {s.tier} · {s.verified ? "confirmed" : "confirming"} · ends{" "}
+                    {new Date(s.ends_at).toLocaleDateString("en-US")}
                   </span>
                   <span className="text-success">
                     +
