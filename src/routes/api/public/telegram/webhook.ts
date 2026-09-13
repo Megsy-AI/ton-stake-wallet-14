@@ -4,7 +4,7 @@ const APP_URL = "https://t.me/Rielmbot/app";
 const COMMUNITY_URL = "https://t.me/goacco";
 
 const WELCOME = [
-  "Welcome to Gram Staking.",
+  "Welcome to EGRAM.",
   "",
   "Stake GRAM, TON, USDT and NOT on the TON network and earn a tiered yearly rate that grows with your amount, from 12% up to 45%.",
   "",
@@ -33,7 +33,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
               chat_id: chatId,
               text: body,
               reply_markup: {
-                inline_keyboard: [[{ text: "Open Gram Staking", url: APP_URL }]],
+                inline_keyboard: [[{ text: "Open EGRAM", url: APP_URL }]],
               },
             }),
           });
@@ -67,7 +67,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
               text: WELCOME,
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: "Open Gram Staking", url: APP_URL }],
+                  [{ text: "Open EGRAM", url: APP_URL }],
                   [{ text: "Community", url: COMMUNITY_URL }],
                 ],
               },

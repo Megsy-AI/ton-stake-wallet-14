@@ -27,16 +27,16 @@ import { useServerFn } from "@tanstack/react-start";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Gram Staking — Earn on GRAM and TON" },
+      { title: "EGRAM — Stake on TON" },
       {
         name: "description",
         content:
-          "Stake GRAM, TON, USDT and NOT on the TON network with tiered yields that grow with your amount.",
+          "Stake GRAM, USDT, NOT and DOGS on TON with tiered projected yields.",
       },
-      { property: "og:title", content: "Gram Staking — Earn on GRAM and TON" },
+      { property: "og:title", content: "EGRAM — Stake on TON" },
       {
         property: "og:description",
-        content: "Tiered staking for GRAM and TON assets inside Telegram.",
+        content: "Tiered staking for TON-network assets inside Telegram.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -114,7 +114,7 @@ function StakePage() {
       });
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 300,
-        messages: [{ address: TREASURY_WALLET, amount: toNano(value), payload: paymentComment(created.id) }],
+        messages: [{ address: TREASURY_WALLET, amount: toNano(value), payload: await paymentComment(created.id) }],
       });
       toast.success(`${tier.name} stake opened. Confirming on TON network`);
       setStakes(await fetchStakes({ data: { telegramId: tgUser.id } }));
@@ -133,7 +133,7 @@ function StakePage() {
         <div className="flex items-center gap-3">
           <img src={gramCoin.url} alt="Gram token" width={36} height={36} className="h-9 w-9" />
           <div>
-            <h1 className="text-[17px] font-semibold leading-tight">Gram Staking</h1>
+            <h1 className="text-[18px] font-semibold leading-tight">EGRAM</h1>
             <p className="text-[12px] text-muted-foreground">TON network</p>
           </div>
         </div>
@@ -264,6 +264,15 @@ function StakePage() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      <section className="mt-7" aria-label="Partners">
+        <p className="px-1 text-[11px] font-medium uppercase text-muted-foreground">Partners</p>
+        <div className="mt-2 flex items-center justify-between border-y border-border px-2 py-4 text-[13px] font-semibold text-muted-foreground">
+          <span>Google</span>
+          <span>Alibaba</span>
+          <span>Megsy AI</span>
         </div>
       </section>
 

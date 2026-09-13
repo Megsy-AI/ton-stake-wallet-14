@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/public/tonconnect-manifest")({
         return new Response(
           JSON.stringify({
             url: origin,
-            name: "Gram Staking",
+            name: "EGRAM",
             iconUrl: ICON_URL,
             termsOfUseUrl: origin,
             privacyPolicyUrl: origin,
