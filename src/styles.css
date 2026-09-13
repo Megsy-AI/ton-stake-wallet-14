@@ -191,6 +191,7 @@
 
 @utility nav-item-active {
   color: var(--color-primary-foreground);
+  background-color: var(--color-primary);
 }
 
 @media (prefers-reduced-motion: reduce) {
