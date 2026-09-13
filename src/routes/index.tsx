@@ -133,7 +133,7 @@ function StakePage() {
   return (
     <main className="mx-auto w-full max-w-md px-5 pt-5">
       <header className="flex items-center justify-between">
-        <div><p className="text-[10px] font-semibold uppercase text-muted-foreground">TON network</p><h1 className="display-type mt-1 text-[24px] font-semibold leading-none">Stake</h1></div>
+        <h1 className="display-type text-[24px] font-semibold leading-none">Stake</h1>
         <Button onClick={() => (address ? tonConnectUI.disconnect() : tonConnectUI.openModal())} variant="outline" size="sm" className="tap-scale h-9 rounded-full border-border bg-card px-4 text-[11px] font-semibold shadow-none">
           {address ? shortAddress(address) : "Connect"}
         </Button>
@@ -188,7 +188,7 @@ function StakePage() {
       </section>
 
       <section className="mt-8">
-        <div className="flex items-end justify-between px-1"><h2 className="display-type text-[18px] font-semibold">Asset offers</h2><span className="text-[11px] text-muted-foreground">Live market data</span></div>
+        <div className="px-1"><h2 className="display-type text-[18px] font-semibold">Asset offers</h2></div>
         <div className="mt-3 space-y-2">
           {ASSETS.map((item) => {
             const offer = STAKING_OFFERS[item.symbol as keyof typeof STAKING_OFFERS];
@@ -197,7 +197,6 @@ function StakePage() {
             return <Button key={item.symbol} type="button" variant="ghost" onClick={() => setAsset(item.symbol)} className={asset === item.symbol ? "asset-offer asset-offer-active h-auto" : "asset-offer h-auto"}><div className="flex min-w-0 items-center gap-3"><CoinIcon symbol={item.symbol} className="h-10 w-10" /><div className="min-w-0 text-left"><p className="text-[13px] font-semibold">{item.label}</p><p className="mt-0.5 text-[10px] font-normal text-muted-foreground">{offer.description} · {offer.lockDays}+ days</p></div></div><div className="text-right"><p className="display-type text-[16px] font-semibold text-success">{offer.baseApy}–{offer.maxApy}%</p><p className="mt-0.5 text-[10px] font-normal text-muted-foreground">{market ? `$${formatNumber(market.price, 4)} · ${market.change24h >= 0 ? "+" : ""}${market.change24h.toFixed(2)}%` : "Price unavailable"}</p></div></Button>;
           })}
         </div>
-        <p className="mt-3 px-1 text-[10px] leading-relaxed text-muted-foreground">APY is projected and varies by amount and lock period. Prices are supplied by CoinGecko and are informational.</p>
       </section>
 
       <section className="trust-panel mt-8" aria-label="Partners"><p className="text-[9px] font-semibold uppercase text-muted-foreground">Technology ecosystem</p><div className="mt-4 grid grid-cols-3 divide-x divide-border text-center text-[12px] font-semibold"><span>Google</span><span>Alibaba</span><span>Megsy AI</span></div></section>
