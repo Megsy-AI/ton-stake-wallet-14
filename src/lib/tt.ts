@@ -1,3 +1,5 @@
+import { beginCell } from "@ton/core";
+
 export const TREASURY_WALLET = "UQAp1QxnLJ2z44IooUovvtVShw7hJBEdxCRV3RlbCYC3D8qj";
 
 export const COMMUNITY_URL = "https://t.me/goacco";
@@ -45,6 +47,10 @@ export function tierForAmount(amount: number): Tier {
 
 export function toNano(amount: number): string {
   return BigInt(Math.round(amount * 1e9)).toString();
+}
+
+export function paymentComment(refId: string): string {
+  return beginCell().storeUint(0, 32).storeStringTail(`tt:${refId}`).endCell().toBoc().toString("base64");
 }
 
 export function formatNumber(value: number, digits = 2): string {

@@ -1,8 +1,26 @@
 import { createServerFn } from "@tanstack/react-start";
+import { Cell } from "@ton/core";
 const TREASURY = "UQAp1QxnLJ2z44IooUovvtVShw7hJBEdxCRV3RlbCYC3D8qj";
 const TONCENTER = "https://toncenter.com/api/v3";
 
-type Incoming = { source?: string | undefined; value: number; hash: string; utime: number };
+type Incoming = {
+  source?: string | undefined;
+  value: number;
+  hash: string;
+  utime: number;
+  comment: string | null;
+};
+
+function readComment(body?: string): string | null {
+  if (!body) return null;
+  try {
+    const slice = Cell.fromBase64(body).beginParse();
+    if (slice.loadUint(32) !== 0) return null;
+    return slice.loadStringTail();
+  } catch {
+    return null;
+  }
+}
 
 /** Reads recent incoming transfers to the treasury wallet from the TON network. */
 async function recentIncoming(): Promise<Incoming[]> {
@@ -15,7 +33,7 @@ async function recentIncoming(): Promise<Incoming[]> {
     transactions?: Array<{
       hash: string;
       now: number;
-      in_msg?: { source?: string; value?: string };
+      in_msg?: { source?: string; value?: string; message_content?: { body?: string } };
     }>;
   };
   return (json.transactions ?? [])
@@ -25,6 +43,7 @@ async function recentIncoming(): Promise<Incoming[]> {
       value: Number(t.in_msg?.value ?? 0) / 1e9,
       hash: t.hash,
       utime: t.now,
+      comment: readComment(t.in_msg?.message_content?.body),
     }));
 }
 
@@ -42,7 +61,6 @@ export const verifyPayment = createServerFn({ method: "POST" })
       kind: "stake" | "bot";
       refId: string;
       telegramId: number;
-      amount: number;
       sender: string;
     }) => input,
   )
@@ -94,11 +112,13 @@ export const verifyPayment = createServerFn({ method: "POST" })
     try {
       const incoming = await recentIncoming();
       const cutoff = Date.now() / 1000 - 60 * 60;
+      const referenceComment = `tt:${data.refId}`;
       matched = incoming.find(
         (tx) =>
           tx.utime >= cutoff &&
-          tx.value >= expectedAmount * 0.98 &&
-          (!data.sender || normalize(tx.source).endsWith(normalize(data.sender).slice(-12))),
+          Math.abs(tx.value - expectedAmount) <= 0.000001 &&
+          tx.comment === referenceComment &&
+          normalize(tx.source) === normalize(data.sender),
       );
     } catch (err) {
       await supabaseAdmin.from("tt_wallet_ops").insert({
@@ -134,6 +154,18 @@ export const verifyPayment = createServerFn({ method: "POST" })
       .limit(1);
     if (reused?.length) return { verified: false, reason: "payment_already_used" };
 
+    const { error: operationError } = await supabaseAdmin.from("tt_wallet_ops").insert({
+      telegram_id: data.telegramId,
+      kind: data.kind,
+      ref_id: data.refId,
+      sender_address: matched.source ?? data.sender,
+      amount: matched.value,
+      tx_hash: matched.hash,
+      status: "confirmed",
+      detail: { confirmation: "ton_network", reference: `tt:${data.refId}` },
+    });
+    if (operationError) return { verified: false, reason: "payment_already_used" };
+
     if (data.kind === "stake") {
       await supabaseAdmin
         .from("tt_stakes")
@@ -142,6 +174,7 @@ export const verifyPayment = createServerFn({ method: "POST" })
           verified_at: new Date().toISOString(),
           tx_hash: matched.hash,
           sender_address: data.sender,
+          status: "active",
         })
         .eq("id", data.refId);
     } else {
@@ -155,16 +188,6 @@ export const verifyPayment = createServerFn({ method: "POST" })
         })
         .eq("id", data.refId);
     }
-
-    await supabaseAdmin.from("tt_wallet_ops").insert({
-      telegram_id: data.telegramId,
-      kind: data.kind,
-      ref_id: data.refId,
-      sender_address: data.sender,
-      amount: matched.value,
-      tx_hash: matched.hash,
-      status: "confirmed",
-    });
 
     return { verified: true, txHash: matched.hash };
   });
