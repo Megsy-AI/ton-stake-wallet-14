@@ -25,6 +25,39 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         const text = update.message?.text ?? "";
         if (!chatId) return Response.json({ ok: true });
 
+        const send = (body: string) =>
+          fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: body,
+              reply_markup: {
+                inline_keyboard: [[{ text: "Open Gram Staking", url: APP_URL }]],
+              },
+            }),
+          });
+
+        if (text.startsWith("/stake")) {
+          await send(
+            [
+              "Staking tiers",
+              "",
+              "Core: 1 - 49 TON, 12% per year, 30 days",
+              "Plus: 50 - 199 TON, 18% per year, 60 days",
+              "Prime: 200 - 999 TON, 26% per year, 90 days",
+              "Elite: 1,000 - 4,999 TON, 34% per year, 120 days",
+              "Titan: 5,000+ TON, 45% per year, 180 days",
+            ].join("\n"),
+          );
+          return Response.json({ ok: true });
+        }
+
+        if (text.startsWith("/wallet")) {
+          await send("Open the app to see your wallet, positions and rewards.");
+          return Response.json({ ok: true });
+        }
+
         if (text.startsWith("/start")) {
           await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
             method: "POST",

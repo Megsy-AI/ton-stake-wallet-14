@@ -14,6 +14,7 @@ import {
   toNano,
 } from "@/lib/tt";
 import {
+  claimStake,
   createBot,
   getBot,
   listStakes,
@@ -96,6 +97,17 @@ function WalletPage() {
     (sum, s) => sum + accruedReward(Number(s.amount), Number(s.apy), s.started_at, s.ends_at),
     0,
   );
+
+  const claim = async (s: StakeRow) => {
+    const rewards = accruedReward(Number(s.amount), Number(s.apy), s.started_at, s.ends_at);
+    try {
+      await claimStake(s, rewards);
+      toast.success(`Claimed ${formatNumber(rewards, 3)} ${s.coin}`);
+      await refresh();
+    } catch {
+      toast.error("Could not claim right now");
+    }
+  };
 
   const startBot = async () => {
     const value = Number(deposit) || 0;
@@ -212,6 +224,19 @@ function WalletPage() {
                     )}
                   </span>
                 </div>
+                {s.status === "active" && new Date(s.ends_at).getTime() <= Date.now() ? (
+                  <button
+                    onClick={() => claim(s)}
+                    className="tap-scale mt-3 w-full rounded-xl bg-primary py-2.5 text-[13px] font-semibold text-primary-foreground"
+                  >
+                    Claim rewards
+                  </button>
+                ) : null}
+                {s.status === "completed" ? (
+                  <p className="mt-2 text-[12px] text-muted-foreground">
+                    Claimed {formatNumber(Number(s.rewards_claimed), 3)} {s.coin}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>

@@ -149,3 +149,14 @@ export async function listTrades(botId: string): Promise<TradeRow[]> {
     .limit(20);
   return (data ?? []) as TradeRow[];
 }
+
+export async function claimStake(stake: StakeRow, rewards: number) {
+  const { error } = await supabase
+    .from("tt_stakes")
+    .update({
+      status: "completed",
+      rewards_claimed: rewards,
+    })
+    .eq("id", stake.id);
+  if (error) throw error;
+}
