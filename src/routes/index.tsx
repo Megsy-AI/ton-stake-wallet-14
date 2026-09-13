@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import {
   ASSETS,
   STAKING_OFFERS,
-  TIERS,
   MIN_STAKE,
   TREASURY_WALLET,
   COMMUNITY_URL,
