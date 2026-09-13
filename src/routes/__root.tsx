@@ -16,7 +16,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const TONCONNECT_MANIFEST =
-  "https://project--7dc6fd40-9d95-4c66-b704-d5545481c4ac-dev.lovable.app/tonconnect-manifest.json";
+  "https://project--7dc6fd40-9d95-4c66-b704-d5545481c4ac-dev.lovable.app/api/public/tonconnect-manifest";
 
 function NotFoundComponent() {
   return (
