@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 
 type Market = { pair: string; price: number; change24h: number };
 
@@ -10,13 +9,6 @@ const MARKET_IDS: Record<string, string> = {
   "NOT/USDT": "notcoin",
   "DOGS/USDT": "dogs-2",
 };
-
-function serverClient() {
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
-  return createClient(process.env["SUPABASE_URL"]!, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 async function loadMarkets(): Promise<Market[]> {
   const ids = Object.values(MARKET_IDS).join(",");

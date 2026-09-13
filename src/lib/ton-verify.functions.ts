@@ -49,19 +49,15 @@ export const verifyPayment = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const table = data.kind === "stake" ? "tt_stakes" : "tt_ai_bots";
-    const { data: reference } = await supabaseAdmin
-      .from(table)
-      .select("telegram_id, ton_paid, deposit, created_at")
-      .eq("id", data.refId)
-      .maybeSingle();
+    const referenceQuery =
+      data.kind === "stake"
+        ? supabaseAdmin.from("tt_stakes").select("telegram_id, ton_paid, created_at")
+        : supabaseAdmin.from("tt_ai_bots").select("telegram_id, deposit, created_at");
+    const { data: reference } = await referenceQuery.eq("id", data.refId).maybeSingle();
     if (!reference || Number(reference.telegram_id) !== data.telegramId) {
       return { verified: false, reason: "invalid_reference" };
     }
-    const expectedAmount = Number(
-      data.kind === "stake"
-        ? (reference as { ton_paid?: number }).ton_paid
-        : (reference as { deposit?: number }).deposit,
-    );
+    const expectedAmount = Number("ton_paid" in reference ? reference.ton_paid : reference.deposit);
     if (!Number.isFinite(expectedAmount) || expectedAmount <= 0) {
       return { verified: false, reason: "invalid_amount" };
     }
@@ -107,8 +103,8 @@ export const verifyPayment = createServerFn({ method: "POST" })
       .eq("tx_hash", matched.hash)
       .eq("status", "confirmed")
       .neq("ref_id", data.refId)
-      .maybeSingle();
-    if (reused) return { verified: false, reason: "payment_already_used" };
+      .limit(1);
+    if (reused?.length) return { verified: false, reason: "payment_already_used" };
 
     await supabaseAdmin
       .from(table)
