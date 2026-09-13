@@ -12,7 +12,7 @@ function serverClient() {
   );
 }
 
-type Incoming = { source?: string; value: number; hash: string; utime: number };
+type Incoming = { source?: string | undefined; value: number; hash: string; utime: number };
 
 /** Reads recent incoming transfers to the treasury wallet from the TON network. */
 async function recentIncoming(): Promise<Incoming[]> {
