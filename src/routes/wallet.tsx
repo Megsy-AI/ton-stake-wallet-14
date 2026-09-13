@@ -25,6 +25,7 @@ import {
 } from "@/lib/tt-api";
 import { getMarkets, runAiCycle } from "@/lib/ai-trading.functions";
 import { verifyPayment } from "@/lib/ton-verify.functions";
+import { getAgentWallet } from "@/lib/ton-trader.functions";
 import { getTelegramUserSync } from "@/lib/telegram-user";
 
 export const Route = createFileRoute("/wallet")({
@@ -56,6 +57,7 @@ function WalletPage() {
   const fetchMarkets = useServerFn(getMarkets);
   const cycle = useServerFn(runAiCycle);
   const verify = useServerFn(verifyPayment);
+  const fetchAgent = useServerFn(getAgentWallet);
 
   const [stakes, setStakes] = useState<StakeRow[]>([]);
   const [bot, setBot] = useState<BotRow | null>(null);
@@ -64,6 +66,11 @@ function WalletPage() {
   const [deposit, setDeposit] = useState("25");
   const [risk, setRisk] = useState<string>("balanced");
   const [busy, setBusy] = useState(false);
+  const [agent, setAgent] = useState<{
+    live: boolean;
+    address: string | null;
+    balanceTon: number;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     const [s, b] = await Promise.all([listStakes(tgUser.id), getBot(tgUser.id)]);
@@ -77,7 +84,10 @@ function WalletPage() {
     fetchMarkets({})
       .then((r) => setMarkets(r.markets))
       .catch(() => undefined);
-  }, [refresh, fetchMarkets]);
+    fetchAgent({})
+      .then(setAgent)
+      .catch(() => undefined);
+  }, [refresh, fetchMarkets, fetchAgent]);
 
   useEffect(() => {
     if (!bot || bot.status !== "running") return;
@@ -274,6 +284,20 @@ function WalletPage() {
           <Bot className="h-3.5 w-3.5" strokeWidth={1.8} />
           AI trading bot
         </h2>
+
+        {agent ? (
+          <div className="ios-card mt-2 flex items-center justify-between px-4 py-3.5">
+            <div>
+              <p className="text-[13px] font-medium">Agent wallet</p>
+              <p className="text-[12px] text-muted-foreground">
+                {agent.live ? shortAddress(agent.address) : "Not linked yet"}
+              </p>
+            </div>
+            <p className="text-[13px] font-medium">
+              {agent.live ? `${formatNumber(agent.balanceTon, 3)} TON` : "Analysis mode"}
+            </p>
+          </div>
+        ) : null}
 
         {markets.length > 0 ? (
           <div className="ios-card mt-2 divide-y divide-border">
