@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import {
   ASSETS,
   STAKING_OFFERS,
-  MIN_STAKE,
   TREASURY_WALLET,
   COMMUNITY_URL,
   estimateReward,
@@ -62,6 +61,7 @@ function StakePage() {
 
   const tgUser = useMemo(() => getTelegramUserSync(), []);
   const value = Number(amount) || 0;
+  const selectedOffer = STAKING_OFFERS[asset as keyof typeof STAKING_OFFERS];
   const tier = tierForAmount(value, asset);
   const reward = estimateReward(value, tier.apy, tier.lockDays);
 
@@ -101,8 +101,8 @@ function StakePage() {
       tonConnectUI.openModal();
       return;
     }
-    if (value < MIN_STAKE) {
-      toast.error(`Minimum stake is ${MIN_STAKE} TON`);
+    if (value < selectedOffer.min) {
+      toast.error(`Minimum ${asset} stake is ${selectedOffer.min} TON`);
       return;
     }
     setBusy(true);
