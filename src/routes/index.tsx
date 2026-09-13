@@ -2,9 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
 import { toast } from "sonner";
-import { ArrowUpRight, Check, Lock, Wallet2 } from "lucide-react";
+import { ArrowUpRight, Check } from "lucide-react";
 import gramCoin from "@/assets/gram.png.asset.json";
 import { CoinIcon } from "@/components/CoinIcon";
+import { Button } from "@/components/ui/button";
 import {
   ASSETS,
   TIERS,
@@ -16,8 +17,9 @@ import {
   shortAddress,
   tierForAmount,
   toNano,
+  paymentComment,
 } from "@/lib/tt";
-import { createStake, listStakes, upsertUser, type StakeRow } from "@/lib/tt-api";
+import { createStakeIntent, listStakes, type StakeRow } from "@/lib/tt-data.functions";
 import { getTelegramUserSync } from "@/lib/telegram-user";
 import { verifyPayment } from "@/lib/ton-verify.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -53,6 +55,8 @@ function StakePage() {
   const [busy, setBusy] = useState(false);
   const [stakes, setStakes] = useState<StakeRow[]>([]);
   const verify = useServerFn(verifyPayment);
+  const fetchStakes = useServerFn(listStakes);
+  const prepareStake = useServerFn(createStakeIntent);
 
   const tgUser = useMemo(() => getTelegramUserSync(), []);
   const value = Number(amount) || 0;
@@ -60,18 +64,11 @@ function StakePage() {
   const reward = estimateReward(value, tier.apy, tier.lockDays);
 
   useEffect(() => {
-    upsertUser({
-      telegram_id: tgUser.id,
-      username: tgUser.username,
-      first_name: tgUser.first_name,
-      wallet_address: address || null,
-    }).catch(() => undefined);
-    listStakes(tgUser.id).then(setStakes).catch(() => undefined);
-  }, [tgUser, address]);
+    fetchStakes({ data: { telegramId: tgUser.id } }).then(setStakes).catch(() => undefined);
+  }, [tgUser.id, fetchStakes]);
 
-  const totalStaked = stakes
-    .filter((s) => s.status === "active")
-    .reduce((sum, s) => sum + Number(s.amount), 0);
+  const confirmedStakes = stakes.filter((s) => s.status === "active" && s.verified);
+  const totalStaked = confirmedStakes.reduce((sum, s) => sum + Number(s.ton_paid), 0);
 
   const confirmOnChain = async (refId: string, paid: number) => {
     for (let attempt = 0; attempt < 10; attempt++) {
@@ -82,13 +79,12 @@ function StakePage() {
             kind: "stake",
             refId,
             telegramId: tgUser.id,
-            amount: paid,
             sender: address,
           },
         });
         if (res.verified) {
           toast.success("Payment confirmed on TON network");
-          setStakes(await listStakes(tgUser.id));
+          setStakes(await fetchStakes({ data: { telegramId: tgUser.id } }));
           return;
         }
       } catch {
@@ -108,22 +104,20 @@ function StakePage() {
     }
     setBusy(true);
     try {
-      const result = await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 300,
-        messages: [{ address: TREASURY_WALLET, amount: toNano(value) }],
+      const created = await prepareStake({
+        data: {
+          telegramId: tgUser.id,
+          walletAddress: address,
+          coin: asset,
+          amount: value,
+        },
       });
-      const created = await createStake({
-        telegram_id: tgUser.id,
-        wallet_address: address,
-        coin: asset,
-        amount: value,
-        tier: tier.name,
-        apy: tier.apy,
-        lock_days: tier.lockDays,
-        tx_hash: result?.boc ? result.boc.slice(0, 64) : null,
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+        messages: [{ address: TREASURY_WALLET, amount: toNano(value), payload: paymentComment(created.id) }],
       });
       toast.success(`${tier.name} stake opened. Confirming on TON network`);
-      setStakes(await listStakes(tgUser.id));
+      setStakes(await fetchStakes({ data: { telegramId: tgUser.id } }));
       void confirmOnChain(created.id, value);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Transaction cancelled";
@@ -143,13 +137,14 @@ function StakePage() {
             <p className="text-[12px] text-muted-foreground">TON network</p>
           </div>
         </div>
-        <button
+        <Button
           onClick={() => (address ? tonConnectUI.disconnect() : tonConnectUI.openModal())}
-          className="tap-scale flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-[12px] font-medium"
+          variant="outline"
+          size="sm"
+          className="tap-scale rounded-full px-3 text-[12px]"
         >
-          <Wallet2 className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.8} />
           {address ? shortAddress(address) : "Connect wallet"}
-        </button>
+        </Button>
       </header>
 
       <section className="ios-card mt-5 p-5">
@@ -161,7 +156,7 @@ function StakePage() {
           <div className="rounded-xl bg-muted px-3 py-2.5">
             <p className="text-[11px] text-muted-foreground">Active positions</p>
             <p className="text-[15px] font-medium">
-              {stakes.filter((s) => s.status === "active").length}
+              {confirmedStakes.length}
             </p>
           </div>
           <div className="rounded-xl bg-muted px-3 py-2.5">
@@ -173,11 +168,12 @@ function StakePage() {
 
       <section className="mt-6">
         <h2 className="px-1 text-[13px] font-medium text-muted-foreground">Asset</h2>
-        <div className="mt-2 grid grid-cols-4 gap-1 rounded-2xl bg-muted p-1">
+        <div className="mt-2 grid grid-cols-4 gap-2 rounded-2xl bg-muted p-1">
           {ASSETS.map((a) => (
-            <button
+            <Button
               key={a.symbol}
               onClick={() => setAsset(a.symbol)}
+              variant="ghost"
               className={
                 asset === a.symbol
                   ? "flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl bg-card px-1 py-2 text-[11px] font-medium shadow-sm"
@@ -186,7 +182,7 @@ function StakePage() {
             >
               <CoinIcon symbol={a.symbol} className="h-6 w-6" />
               <span className="text-center leading-tight">{a.label}</span>
-            </button>
+            </Button>
           ))}
         </div>
       </section>
@@ -204,13 +200,14 @@ function StakePage() {
         />
         <div className="mt-3 flex gap-2">
           {QUICK.map((q) => (
-            <button
+            <Button
               key={q}
               onClick={() => setAmount(String(q))}
+              variant="ghost"
               className="tap-scale flex-1 rounded-full bg-muted py-2 text-[12px] font-medium text-secondary-foreground"
             >
               {formatNumber(q)}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -228,21 +225,20 @@ function StakePage() {
             <dd className="font-medium">{tier.lockDays} days</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-muted-foreground">Estimated reward</dt>
+            <dt className="text-muted-foreground">Projected reward</dt>
             <dd className="font-medium">
               {formatNumber(reward, 3)} {asset}
             </dd>
           </div>
         </dl>
 
-        <button
+        <Button
           onClick={stake}
           disabled={busy}
-          className="tap-scale mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+          className="tap-scale mt-5 h-auto w-full rounded-2xl py-3.5 text-[15px] font-semibold"
         >
-          <Lock className="h-4 w-4" strokeWidth={1.9} />
           {busy ? "Confirming" : address ? `Stake ${formatNumber(value)} TON` : "Connect wallet"}
-        </button>
+        </Button>
       </section>
 
       <section className="mt-7">

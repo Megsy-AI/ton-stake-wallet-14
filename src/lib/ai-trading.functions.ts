@@ -60,7 +60,7 @@ export const createTradingBot = createServerFn({ method: "POST" })
         telegram_id: data.telegramId,
         wallet_address: data.walletAddress,
         deposit: data.depositTon,
-        balance: data.depositTon,
+        balance: 0,
         risk: data.risk,
         tx_hash: data.txHash,
         status: "pending",
