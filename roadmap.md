@@ -10,9 +10,9 @@
 - [x] Add a restrained partnerships strip for Google, Alibaba, and Megsy AI.
 - [x] Rebuild Stake and Wallet with a premium white trading-app visual system inspired by the supplied references.
 - [x] Verify the redesigned screens at the current 434×716 mobile viewport.
-- [ ] Remove the EGRAM wordmark and Gram image from page headers.
-- [ ] Rebuild staking offers per asset with higher, clearly projected asset-specific yields and live market data.
-- [ ] Redesign the partners and community area.
-- [ ] Move AI trading into a dedicated third page with explanations and FAQs.
-- [ ] Redesign the wallet around confirmed positions and on-chain values.
-- [ ] Verify all three screens at the current mobile viewport and check diagnostics.
+- [x] Remove the EGRAM wordmark and Gram image from page headers.
+- [x] Rebuild staking offers per asset with higher, clearly projected asset-specific yields and live market data.
+- [x] Redesign the partners and community area.
+- [x] Move AI trading into a dedicated third page with explanations and FAQs.
+- [x] Redesign the wallet around confirmed positions and on-chain values.
+- [x] Verify all three screens at the current mobile viewport and check diagnostics.
