@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
 import { toast } from "sonner";
-import { ArrowUpRight, Check } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import gramCoin from "@/assets/gram.png.asset.json";
 import { CoinIcon } from "@/components/CoinIcon";
 import { Button } from "@/components/ui/button";
